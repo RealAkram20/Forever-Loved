@@ -15,8 +15,89 @@
         </a>
 
         {{-- Search bar --}}
-        <div class="hidden flex-1 max-w-md lg:block">
-            <input type="search" placeholder="Search memorials..." class="h-9 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 text-sm text-gray-800 dark:text-white/90 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-brand-300 focus:outline-hidden focus:ring-2 focus:ring-brand-500/20" />
+        <div class="hidden flex-1 max-w-md lg:block"
+            x-data="{
+                query: '',
+                results: [],
+                open: false,
+                loading: false,
+                debounceTimer: null,
+                selected: -1,
+                search() {
+                    clearTimeout(this.debounceTimer);
+                    if (this.query.length < 2) { this.results = []; this.open = false; return; }
+                    this.loading = true;
+                    this.debounceTimer = setTimeout(() => {
+                        fetch(`{{ route('memorials.search') }}?q=${encodeURIComponent(this.query)}`)
+                            .then(r => r.json())
+                            .then(data => {
+                                this.results = data.results;
+                                this.open = this.results.length > 0;
+                                this.selected = -1;
+                                this.loading = false;
+                            })
+                            .catch(() => { this.loading = false; });
+                    }, 300);
+                },
+                navigate(url) { window.location.href = url; },
+                onKeydown(e) {
+                    if (!this.open) return;
+                    if (e.key === 'ArrowDown') { e.preventDefault(); this.selected = Math.min(this.selected + 1, this.results.length - 1); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); this.selected = Math.max(this.selected - 1, 0); }
+                    else if (e.key === 'Enter' && this.selected >= 0) { e.preventDefault(); this.navigate(this.results[this.selected].url); }
+                    else if (e.key === 'Escape') { this.open = false; }
+                }
+            }"
+            @click.away="open = false">
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </span>
+                <input
+                    type="search"
+                    x-model="query"
+                    @input="search()"
+                    @keydown="onKeydown($event)"
+                    @focus="if (results.length) open = true"
+                    placeholder="Search memorials..."
+                    autocomplete="off"
+                    class="h-9 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-9 pr-4 text-sm text-gray-800 dark:text-white/90 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-brand-300 focus:outline-hidden focus:ring-2 focus:ring-brand-500/20" />
+                <svg x-show="loading" class="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
+
+            {{-- Results dropdown --}}
+            <div x-show="open" x-cloak x-transition.opacity
+                class="absolute z-50 mt-1 w-full max-w-md rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
+                <template x-for="(item, idx) in results" :key="item.slug">
+                    <a :href="item.url"
+                       class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/60"
+                       :class="{ 'bg-gray-50 dark:bg-gray-700/60': selected === idx }"
+                       @mouseenter="selected = idx">
+                        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                            <template x-if="item.photo">
+                                <img :src="item.photo" :alt="item.name" class="h-full w-full object-cover" />
+                            </template>
+                            <template x-if="!item.photo">
+                                <div class="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-400 dark:text-gray-500" x-text="item.name?.charAt(0)?.toUpperCase()"></div>
+                            </template>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-medium text-gray-900 dark:text-white/90" x-text="item.name"></p>
+                            <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+                                <span x-text="item.profession || ''"></span>
+                                <span x-show="item.profession && item.years"> &middot; </span>
+                                <span x-text="item.years || ''"></span>
+                            </p>
+                        </div>
+                        <svg class="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                </template>
+                <template x-if="query.length >= 2 && !loading && results.length === 0">
+                    <div class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                        No memorials found for "<span x-text="query" class="font-medium"></span>"
+                    </div>
+                </template>
+            </div>
         </div>
 
         {{-- Right nav --}}
@@ -27,6 +108,7 @@
                 <svg class="fill-current dark:hidden" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M17.4547 11.97L18.1799 12.1611C18.265 11.8383 18.1265 11.4982 17.8401 11.3266C17.5538 11.1551 17.1885 11.1934 16.944 11.4207L17.4547 11.97ZM8.0306 2.5459L8.57989 3.05657C8.80718 2.81209 8.84554 2.44682 8.67398 2.16046C8.50243 1.8741 8.16227 1.73559 7.83948 1.82066L8.0306 2.5459ZM12.9154 13.0035C9.64678 13.0035 6.99707 10.3538 6.99707 7.08524H5.49707C5.49707 11.1823 8.81835 14.5035 12.9154 14.5035V13.0035ZM16.944 11.4207C15.8869 12.4035 14.4721 13.0035 12.9154 13.0035V14.5035C14.8657 14.5035 16.6418 13.7499 17.9654 12.5193L16.944 11.4207ZM16.7295 11.7789C15.9437 14.7607 13.2277 16.9586 10.0003 16.9586V18.4586C13.9257 18.4586 17.2249 15.7853 18.1799 12.1611L16.7295 11.7789ZM10.0003 16.9586C6.15734 16.9586 3.04199 13.8433 3.04199 10.0003H1.54199C1.54199 14.6717 5.32892 18.4586 10.0003 18.4586V16.9586ZM3.04199 10.0003C3.04199 6.77289 5.23988 4.05695 8.22173 3.27114L7.83948 1.82066C4.21532 2.77574 1.54199 6.07486 1.54199 10.0003H3.04199ZM6.99707 7.08524C6.99707 5.52854 7.5971 4.11366 8.57989 3.05657L7.48132 2.03522C6.25073 3.35885 5.49707 5.13487 5.49707 7.08524H6.99707Z" fill="currentColor"/></svg>
             </button>
             <a href="{{ route('home') }}" class="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200">Home</a>
+            <a href="{{ route('memorial.directory') }}" class="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200">Find Memorial</a>
 
             @if ($isAdmin)
                 <a href="{{ route('memorials.index') }}" class="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600">Dashboard</a>

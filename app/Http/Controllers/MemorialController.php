@@ -16,6 +16,66 @@ use Illuminate\Validation\Rule;
 class MemorialController extends Controller
 {
     /**
+     * AJAX memorial search — returns JSON for live search dropdowns.
+     * Context: 'public' (default) = only public memorials; 'admin' = own + granted; 'super_admin' = all.
+     * Private memorials (is_public=false) never appear in public search.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $query = trim($request->input('q', ''));
+        $context = $request->input('context', 'public');
+        $user = $request->user();
+
+        if (mb_strlen($query) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $base = Memorial::query()
+            ->where(function ($q) use ($query) {
+                $q->where('full_name', 'like', "%{$query}%")
+                  ->orWhere('first_name', 'like', "%{$query}%")
+                  ->orWhere('last_name', 'like', "%{$query}%")
+                  ->orWhere('primary_profession', 'like', "%{$query}%")
+                  ->orWhere('nationality', 'like', "%{$query}%")
+                  ->orWhere('birth_city', 'like', "%{$query}%")
+                  ->orWhere('death_city', 'like', "%{$query}%")
+                  ->orWhere('known_for', 'like', "%{$query}%");
+            });
+
+        if ($context === 'super_admin' && $user?->hasRole('super-admin')) {
+            $base->whereIn('status', [Memorial::STATUS_ACTIVE, Memorial::STATUS_DEACTIVATED, Memorial::STATUS_SUSPENDED]);
+        } elseif ($context === 'admin' && $user?->hasRole(['admin', 'super-admin'])) {
+            if ($user->hasRole('super-admin')) {
+                $base->whereIn('status', [Memorial::STATUS_ACTIVE, Memorial::STATUS_DEACTIVATED, Memorial::STATUS_SUSPENDED]);
+            } else {
+                $base->where('user_id', $user->id);
+            }
+        } else {
+            $base->where('is_public', true)
+                 ->where('status', Memorial::STATUS_ACTIVE)
+                 ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+        }
+
+        $memorials = $base
+            ->select(['id', 'slug', 'full_name', 'primary_profession', 'profile_photo_path', 'birth_year', 'death_year', 'date_of_birth', 'date_of_passing'])
+            ->orderByRaw("CASE WHEN full_name LIKE ? THEN 0 ELSE 1 END", ["{$query}%"])
+            ->orderBy('full_name')
+            ->limit(8)
+            ->get();
+
+        $results = $memorials->map(fn (Memorial $m) => [
+            'slug' => $m->slug,
+            'name' => $m->full_name,
+            'profession' => $m->primary_profession,
+            'photo' => $m->profile_photo_url,
+            'years' => $m->birth_death_years,
+            'url' => route('memorial.public', $m->slug),
+        ]);
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
      * Display memorials: admin sees all with admin table; regular users see their own with user table.
      */
     public function index(Request $request)

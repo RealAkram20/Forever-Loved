@@ -23,7 +23,7 @@
 @endpush
 
 @section('content')
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900" data-memorial-slug="{{ $memorial->slug }}" data-tribute-url="{{ route('memorial.api.tribute', ['slug' => $memorial->slug]) }}" data-can-edit="{{ $canEdit ? '1' : '0' }}" data-is-authenticated="{{ $isAuthenticated ? '1' : '0' }}" data-can-upload="{{ $canEdit ? '1' : '0' }}" data-scroll-tribute="{{ $scrollToTributeId ?? '' }}" data-scroll-chapter="{{ $scrollToChapterId ?? '' }}">
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900" data-memorial-slug="{{ $memorial->slug }}" data-tribute-url="{{ route('memorial.api.tribute', ['slug' => $memorial->slug]) }}" data-can-edit="{{ $canEdit ? '1' : '0' }}" data-is-authenticated="{{ $isAuthenticated ? '1' : '0' }}" data-can-upload="{{ $canEdit ? '1' : '0' }}" data-scroll-tribute="{{ $scrollToTributeId ?? '' }}" data-scroll-chapter="{{ $scrollToChapterId ?? '' }}" data-deceased-first="{{ \Illuminate\Support\Str::before($memorial->full_name ?? '', ' ') ?: ($memorial->full_name ?? 'them') }}">
     <x-home-header />
 
     {{-- Guest modal: name + email for tributes/reactions --}}
@@ -273,11 +273,8 @@
                                                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
                                                 Share
                                             </button>
-                                            <div data-share-dropdown="{{ $post->id }}" class="absolute right-0 top-full z-[9999] mt-1 hidden w-48 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl py-1">
-                                                <a href="#" data-share="whatsapp" data-share-url="{{ route('memorial.chapter.public', ['memorial_slug' => $memorial->slug, 'share_id' => $post->share_id]) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">WhatsApp</a>
-                                                <a href="#" data-share="facebook" data-share-url="{{ route('memorial.chapter.public', ['memorial_slug' => $memorial->slug, 'share_id' => $post->share_id]) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Facebook</a>
-                                                <a href="#" data-share="linkedin" data-share-url="{{ route('memorial.chapter.public', ['memorial_slug' => $memorial->slug, 'share_id' => $post->share_id]) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">LinkedIn</a>
-                                                <button type="button" data-share="copy" data-share-url="{{ route('memorial.chapter.public', ['memorial_slug' => $memorial->slug, 'share_id' => $post->share_id]) }}" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Link</button>
+                                            <div data-share-dropdown="{{ $post->id }}" class="absolute right-0 top-full z-[9999] mt-1 hidden w-52 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl p-1.5">
+                                                @include('pages.memorials.partials.share-dropdown', ['shareUrl' => route('memorial.chapter.public', ['memorial_slug' => $memorial->slug, 'share_id' => $post->share_id])])
                                             </div>
                                         </div>
                                     </div>
@@ -365,12 +362,37 @@
                     </div>
 
                     {{-- Tab: Tributes --}}
-                    <div id="tab-tributes" class="memorial-tab-panel hidden p-6">
+                    @php $tc = $tributeCounts ?? ['flower' => 0, 'candle' => 0, 'note' => 0, 'total' => 0]; @endphp
+                    <div id="tab-tributes" class="memorial-tab-panel hidden p-6" x-data="{ tributeFilter: 'all' }">
                         <div class="flex items-center justify-between gap-4 mb-4">
                             <h2 class="text-lg font-semibold text-gray-900 dark:text-white/90">Tributes (<span data-tribute-count>{{ $tributes->total() + (isset($highlightTribute) ? 1 : 0) }}</span>)</h2>
                             <button type="button" id="add-tribute-btn" class="rounded-lg border border-dashed border-brand-400 dark:border-brand-500 px-4 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/20">Add a tribute</button>
                         </div>
-                        <div class="mt-4 space-y-4" data-tributes-list>
+
+                        {{-- Type filter tabs --}}
+                        <div class="flex flex-wrap gap-2 mb-5">
+                            <button type="button" @click="tributeFilter = 'all'" :class="tributeFilter === 'all' ? 'bg-gray-900 dark:bg-white/90 text-white dark:text-gray-900' : 'bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'" class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition">
+                                All
+                                <span class="rounded-full bg-white/20 dark:bg-gray-900/20 px-2 py-0.5 text-xs" :class="tributeFilter === 'all' ? 'bg-white/20 dark:bg-gray-900/20' : 'bg-gray-200 dark:bg-white/10'" data-count-all>{{ $tc['total'] }}</span>
+                            </button>
+                            <button type="button" @click="tributeFilter = 'flower'" :class="tributeFilter === 'flower' ? 'bg-pink-600 dark:bg-pink-500 text-white' : 'bg-pink-50 dark:bg-pink-950/30 text-pink-700 dark:text-pink-400 hover:bg-pink-100 dark:hover:bg-pink-900/40'" class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9.5 2 7.5 4.5 7.5 7c0 1.8 1 3.4 2.5 4.2V22h4V11.2c1.5-.8 2.5-2.4 2.5-4.2 0-2.5-2-5-4.5-5zm-2 7c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm4 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                                Flowers
+                                <span class="rounded-full px-2 py-0.5 text-xs" :class="tributeFilter === 'flower' ? 'bg-white/20' : 'bg-pink-100 dark:bg-pink-900/40'" data-count-flower>{{ $tc['flower'] }}</span>
+                            </button>
+                            <button type="button" @click="tributeFilter = 'candle'" :class="tributeFilter === 'candle' ? 'bg-amber-600 dark:bg-amber-500 text-white' : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40'" class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-.5 0-1 .19-1.41.59l-1.3 1.3C8.78 4.4 8.5 5.13 8.5 5.91c0 1.97 1.6 3.59 3.5 3.59s3.5-1.62 3.5-3.59c0-.78-.28-1.51-.79-2.02l-1.3-1.3C13 2.19 12.5 2 12 2zm-1 8.5V22h2V10.5h-2z"/></svg>
+                                Candles
+                                <span class="rounded-full px-2 py-0.5 text-xs" :class="tributeFilter === 'candle' ? 'bg-white/20' : 'bg-amber-100 dark:bg-amber-900/40'" data-count-candle>{{ $tc['candle'] }}</span>
+                            </button>
+                            <button type="button" @click="tributeFilter = 'note'" :class="tributeFilter === 'note' ? 'bg-gray-700 dark:bg-gray-500 text-white' : 'bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'" class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                                Notes
+                                <span class="rounded-full px-2 py-0.5 text-xs" :class="tributeFilter === 'note' ? 'bg-white/20' : 'bg-gray-200 dark:bg-white/10'" data-count-note>{{ $tc['note'] }}</span>
+                            </button>
+                        </div>
+
+                        <div class="space-y-4" data-tributes-list>
                             @if($highlightTribute ?? null)
                                 @foreach([$highlightTribute] as $tribute)
                                     @include('pages.memorials.partials.tribute-item', ['tribute' => $tribute, 'shareUrl' => route('memorial.tribute.public', ['memorial_slug' => $memorial->slug, 'share_id' => $tribute->share_id])])

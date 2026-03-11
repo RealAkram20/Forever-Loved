@@ -37,6 +37,26 @@ document.addEventListener('DOMContentLoaded', () => {
         body,
     });
 
+    function shareDropdownHtml(url) {
+        return `<a href="#" data-share="whatsapp" data-share-url="${url}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition hover:bg-green-50 dark:hover:bg-green-950/30 text-gray-700 dark:text-gray-300 group">
+            <svg class="h-5 w-5 text-[#25D366] shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            <span class="group-hover:text-[#25D366] transition">WhatsApp</span>
+        </a>
+        <a href="#" data-share="facebook" data-share-url="${url}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition hover:bg-blue-50 dark:hover:bg-blue-950/30 text-gray-700 dark:text-gray-300 group">
+            <svg class="h-5 w-5 text-[#1877F2] shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            <span class="group-hover:text-[#1877F2] transition">Facebook</span>
+        </a>
+        <a href="#" data-share="linkedin" data-share-url="${url}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition hover:bg-sky-50 dark:hover:bg-sky-950/30 text-gray-700 dark:text-gray-300 group">
+            <svg class="h-5 w-5 text-[#0A66C2] shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            <span class="group-hover:text-[#0A66C2] transition">LinkedIn</span>
+        </a>
+        <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
+        <button type="button" data-share="copy" data-share-url="${url}" class="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 group">
+            <svg class="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-brand-500 shrink-0 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            <span class="group-hover:text-brand-500 transition">Copy link</span>
+        </button>`;
+    }
+
     // --- Tab switching ---
     function switchToTab(panelId) {
         const btn = document.querySelector(`.memorial-tab-btn[data-tab-panel="${panelId}"]`);
@@ -293,11 +313,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
                                             Share
                                         </button>
-                                        <div data-share-dropdown="${p.id}" class="absolute right-0 top-full z-[9999] mt-1 hidden w-48 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl py-1">
-                                            <a href="#" data-share="whatsapp" data-share-url="${p.share_id ? `${window.location.origin}/${memorialSlug}/chapter/${p.share_id}` : `${window.location.origin}/${memorialSlug}/chapter/${p.id}`}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">WhatsApp</a>
-                                            <a href="#" data-share="facebook" data-share-url="${p.share_id ? `${window.location.origin}/${memorialSlug}/chapter/${p.share_id}` : `${window.location.origin}/${memorialSlug}/chapter/${p.id}`}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Facebook</a>
-                                            <a href="#" data-share="linkedin" data-share-url="${p.share_id ? `${window.location.origin}/${memorialSlug}/chapter/${p.share_id}` : `${window.location.origin}/${memorialSlug}/chapter/${p.id}`}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">LinkedIn</a>
-                                            <button type="button" data-share="copy" data-share-url="${p.share_id ? `${window.location.origin}/${memorialSlug}/chapter/${p.share_id}` : `${window.location.origin}/${memorialSlug}/chapter/${p.id}`}" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Link</button>
+                                        <div data-share-dropdown="${p.id}" class="absolute right-0 top-full z-[9999] mt-1 hidden w-52 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl p-1.5">
+                                            ${shareDropdownHtml(p.share_id ? `${window.location.origin}/${memorialSlug}/chapter/${p.share_id}` : `${window.location.origin}/${memorialSlug}/chapter/${p.id}`)}
                                         </div>
                                     </div>
                                 </div>
@@ -608,43 +625,112 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tributeQuill) tributeQuill.setText('');
     });
 
+    const tributeCardConfig = {
+        flower: {
+            card: 'border-pink-200/60 dark:border-pink-800/40 bg-pink-50/40 dark:bg-pink-950/20',
+            avatar: 'bg-pink-200/70 dark:bg-pink-800/40 text-pink-700 dark:text-pink-300',
+            inner: 'bg-pink-100/50 dark:bg-pink-900/20 border border-pink-200/40 dark:border-pink-800/30',
+            label: 'text-pink-600 dark:text-pink-400',
+            labelText: 'Flower Left',
+            border: 'border-pink-200/40 dark:border-pink-800/30',
+            icon: '<svg class="h-6 w-6 text-pink-400 tribute-icon-sway" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9.5 2 7.5 4.5 7.5 7c0 1.8 1 3.4 2.5 4.2V22h4V11.2c1.5-.8 2.5-2.4 2.5-4.2 0-2.5-2-5-4.5-5zm-2 7c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm4 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>',
+            inlineIcon: '<svg class="h-10 w-10 tribute-icon-sway" viewBox="0 0 48 48" fill="none"><g transform="translate(24,20)"><ellipse cx="0" cy="-8" rx="5" ry="8" fill="#f9a8d4" opacity="0.9" transform="rotate(0)"/><ellipse cx="0" cy="-8" rx="5" ry="8" fill="#f472b6" opacity="0.8" transform="rotate(72)"/><ellipse cx="0" cy="-8" rx="5" ry="8" fill="#f9a8d4" opacity="0.9" transform="rotate(144)"/><ellipse cx="0" cy="-8" rx="5" ry="8" fill="#f472b6" opacity="0.8" transform="rotate(216)"/><ellipse cx="0" cy="-8" rx="5" ry="8" fill="#f9a8d4" opacity="0.9" transform="rotate(288)"/><circle cx="0" cy="0" r="4" fill="#fbbf24"/></g><line x1="24" y1="24" x2="24" y2="44" stroke="#86efac" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="18" cy="36" rx="5" ry="3" fill="#86efac" opacity="0.7" transform="rotate(-30, 18, 36)"/></svg>',
+            fallback: (name) => `A flower placed in memory of ${name}.`,
+        },
+        candle: {
+            card: 'border-amber-200/60 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-950/20',
+            avatar: 'bg-amber-200/70 dark:bg-amber-800/40 text-amber-700 dark:text-amber-300',
+            inner: 'bg-amber-100/50 dark:bg-amber-900/20 border border-amber-200/40 dark:border-amber-800/30',
+            label: 'text-amber-600 dark:text-amber-400',
+            labelText: 'Candle Lit',
+            border: 'border-amber-200/40 dark:border-amber-800/30',
+            icon: '<svg class="h-6 w-6 text-amber-400 tribute-icon-flicker" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-.5 0-1 .19-1.41.59l-1.3 1.3C8.78 4.4 8.5 5.13 8.5 5.91c0 1.97 1.6 3.59 3.5 3.59s3.5-1.62 3.5-3.59c0-.78-.28-1.51-.79-2.02l-1.3-1.3C13 2.19 12.5 2 12 2zm-1 8.5V22h2V10.5h-2z"/></svg>',
+            inlineIcon: '<svg class="h-10 w-10" viewBox="0 0 48 48" fill="none"><rect x="19" y="22" width="10" height="20" rx="2" fill="#fbbf24" opacity="0.85"/><rect x="20" y="22" width="3" height="20" rx="1" fill="#fde68a" opacity="0.4"/><rect x="23" y="20" width="2" height="3" rx="1" fill="#92400e"/><g class="tribute-flame-flicker" transform-origin="24 16"><ellipse cx="24" cy="14" rx="4.5" ry="7" fill="#f97316" opacity="0.9"/><ellipse cx="24" cy="13" rx="2.5" ry="5" fill="#fbbf24"/><ellipse cx="24" cy="12" rx="1.2" ry="3" fill="#fef3c7"/></g><ellipse cx="24" cy="9" rx="6" ry="3" fill="#fbbf24" opacity="0.15" class="tribute-glow-pulse"/></svg>',
+            fallback: (name) => `A flame lit in honour of ${name}.`,
+        },
+        note: {
+            card: 'border-gray-200/80 dark:border-gray-700/60 bg-gray-50/40 dark:bg-white/[0.02]',
+            avatar: 'bg-gray-200/70 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300',
+            inner: 'bg-white/60 dark:bg-white/[0.03] border border-gray-200/50 dark:border-gray-700/40',
+            label: 'text-gray-500 dark:text-gray-400',
+            labelText: 'Note Left',
+            border: 'border-gray-200/50 dark:border-gray-700/40',
+            icon: '<svg class="h-6 w-6 text-gray-400 dark:text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>',
+            inlineIcon: '<svg class="h-10 w-10 tribute-icon-write" viewBox="0 0 48 48" fill="none"><path d="M34 6c-6 4-12 14-16 24l-2 8 6-4c4-8 8-16 14-22" fill="#94a3b8" opacity="0.15"/><path d="M34 6c-6 4-12 14-16 24l-2 8 6-4c4-8 8-16 14-22z" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 30l-2 8" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><circle cx="15" cy="39" r="1.5" fill="#64748b" opacity="0.5" class="tribute-ink-dot"/></svg>',
+            fallback: (name) => `A note left for ${name}.`,
+        },
+    };
+
+    const deceasedFirst = container?.dataset.deceasedFirst || 'them';
+
+    function updateTributeFilterCounts(type, delta) {
+        const typeEl = document.querySelector(`[data-count-${type}]`);
+        const allEl = document.querySelector('[data-count-all]');
+        if (typeEl) typeEl.textContent = parseInt(typeEl.textContent || '0', 10) + delta;
+        if (allEl) allEl.textContent = parseInt(allEl.textContent || '0', 10) + delta;
+    }
+
+    function getInitials(name) {
+        return name.split(/\s+/).map(w => w.charAt(0).toUpperCase()).slice(0, 2).join('');
+    }
+
     function appendTribute(t) {
-        const container = document.querySelector('[data-tributes-list]');
-        if (!container) return;
+        const list = document.querySelector('[data-tributes-list]');
+        if (!list) return;
         document.querySelectorAll('.memorial-tab-btn').forEach(b => {
-            if (b.dataset.tabPanel === 'tributes') {
-                b.click();
-            }
+            if (b.dataset.tabPanel === 'tributes') b.click();
         });
-        const div = document.createElement('div');
-        div.className = 'border-b border-gray-100 dark:border-gray-800 pb-4 last:border-0 last:pb-0';
-        div.id = 'tribute-' + (t.id || 'new');
-        const typeClass = t.type === 'flower' ? 'bg-pink-100 dark:bg-pink-500/20 text-pink-800 dark:text-pink-400' : t.type === 'candle' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400' : 'bg-gray-100 dark:bg-gray-500/20 text-gray-800 dark:text-gray-300';
+
+        const cfg = tributeCardConfig[t.type] || tributeCardConfig.note;
         const shareUrl = t.share_id ? `${window.location.origin}/${memorialSlug}/tribute/${t.share_id}` : `${window.location.origin}/${memorialSlug}/tribute/${t.id || 'new'}`;
-        const timeEl = t.created_at_iso ? `<span class="text-xs text-gray-500 dark:text-gray-400 time-ago" data-created-at="${t.created_at_iso}">${t.created_at}</span>` : `<span class="text-xs text-gray-500 dark:text-gray-400">${t.created_at}</span>`;
+        const timeEl = t.created_at_iso ? `<p class="text-xs text-gray-500 dark:text-gray-400 time-ago" data-created-at="${t.created_at_iso}">${escapeHtml(t.created_at)}</p>` : `<p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(t.created_at)}</p>`;
+        const initials = getInitials(t.author || 'A');
+        const textContent = t.message
+            ? `<p class="mb-1 text-xs font-semibold uppercase tracking-wider ${cfg.label}">${cfg.labelText}</p>
+               <div class="text-sm text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none">${t.message}</div>`
+            : `<p class="text-sm italic ${cfg.label}" style="opacity:0.8">${cfg.fallback(escapeHtml(deceasedFirst))}</p>`;
+        const contentBlock = `<div class="mt-3 flex items-start gap-3 rounded-lg p-3 ${cfg.inner}">
+            <div class="shrink-0 mt-0.5">${cfg.inlineIcon}</div>
+            <div class="min-w-0 flex-1">${textContent}</div>
+        </div>`;
+
+        const div = document.createElement('div');
+        div.id = 'tribute-' + (t.id || 'new');
+        div.dataset.tributeId = t.id || 'new';
+        div.dataset.tributeType = t.type;
+        div.className = `rounded-xl border p-4 transition ${cfg.card}`;
         div.innerHTML = `
-            <div class="flex items-center gap-2">
-                <span class="font-medium text-gray-900 dark:text-white/90">${escapeHtml(t.author)}</span>
-                ${timeEl}
-                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${typeClass}">${escapeHtml(t.type)}</span>
-                <div class="relative ml-auto" data-share-container data-tribute-id="${t.id || 'new'}">
-                    <button type="button" data-share-toggle data-share-url="${shareUrl}" class="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-                        Share
+            <div class="flex items-start gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${cfg.avatar}">${escapeHtml(initials)}</div>
+                <div class="min-w-0 flex-1">
+                    <p class="font-semibold text-gray-900 dark:text-white/90 truncate">${escapeHtml(t.author)}</p>
+                    ${timeEl}
+                </div>
+                <div class="shrink-0">${cfg.icon}</div>
+            </div>
+            ${contentBlock}
+            <div class="mt-3 flex items-center justify-between border-t pt-3 ${cfg.border}">
+                <div class="flex items-center gap-4">
+                    <button type="button" class="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition">
+                        <svg class="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                        <span>0</span>
                     </button>
-                    <div data-share-dropdown-tribute class="absolute right-0 top-full z-[9999] mt-1 hidden w-48 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl py-1">
-                        <a href="#" data-share="whatsapp" data-share-url="${shareUrl}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">WhatsApp</a>
-                        <a href="#" data-share="facebook" data-share-url="${shareUrl}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Facebook</a>
-                        <a href="#" data-share="linkedin" data-share-url="${shareUrl}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">LinkedIn</a>
-                        <button type="button" data-share="copy" data-share-url="${shareUrl}" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Link</button>
+                </div>
+                <div class="relative" data-share-container data-tribute-id="${t.id || 'new'}">
+                    <button type="button" data-share-toggle data-share-url="${shareUrl}" class="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-400 transition">
+                        <svg class="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                        Reply
+                    </button>
+                    <div data-share-dropdown-tribute class="absolute right-0 top-full z-[9999] mt-1 hidden w-52 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl p-1.5">
+                        ${shareDropdownHtml(shareUrl)}
                     </div>
                 </div>
             </div>
-            ${t.message ? `<div class="mt-1 text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">${t.message}</div>` : ''}
         `;
-        container.prepend(div);
+        list.prepend(div);
         const emptyEl = document.querySelector('[data-tributes-empty]');
         if (emptyEl) emptyEl.classList.add('hidden');
+        updateTributeFilterCounts(t.type, 1);
         div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         div.querySelectorAll('[data-share]').forEach(b => {
             b.addEventListener('click', (e) => {
@@ -1057,8 +1143,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const t = btn.dataset.share;
         return ['whatsapp', 'facebook', 'linkedin', 'copy', 'invite'].includes(t) ? t : 'invite';
     }
+    function applyStats(stats) {
+        const map = {
+            'data-stats-views-today': stats.views_today,
+            'data-stats-views-week': stats.views_last_week,
+            'data-stats-views-all': stats.views_all_time,
+            'data-stats-shares-today': stats.shares_today,
+            'data-stats-shares-week': stats.shares_last_week,
+            'data-stats-shares-all': stats.shares_all_time,
+        };
+        for (const [attr, val] of Object.entries(map)) {
+            const el = document.querySelector(`[${attr}]`);
+            if (el) el.textContent = val;
+        }
+    }
+
     function trackShare(shareType) {
-        fetch(`${baseUrl}/track-share`, fetchOpts('POST', { share_type: shareType })).catch(() => {});
+        fetch(`${baseUrl}/track-share`, fetchOpts('POST', { share_type: shareType }))
+            .then(r => r.json())
+            .then(data => { if (data.stats) applyStats(data.stats); })
+            .catch(() => {});
     }
     document.querySelectorAll('[data-share]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1089,4 +1193,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('[data-share-dropdown], [data-share-dropdown-tribute]').forEach(d => d.classList.add('hidden'));
         });
     });
+
+    // Refresh stats shortly after load so the view the visitor just caused is reflected
+    setTimeout(() => {
+        fetch(`${baseUrl}/stats`, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(applyStats)
+            .catch(() => {});
+    }, 1500);
 });

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\MemorialApiController;
 use App\Http\Controllers\MemorialController;
+use App\Http\Controllers\MemorialDirectoryController;
 use App\Http\Controllers\MemorialMediaController;
 use App\Http\Controllers\MemorialSignupController;
 use App\Http\Controllers\PublicMemorialController;
@@ -14,6 +15,12 @@ require __DIR__.'/auth.php';
 Route::get('/', function () {
     return view('pages.landing', ['title' => 'Home']);
 })->name('home');
+
+// AJAX memorial search (public)
+Route::get('/api/search/memorials', [MemorialController::class, 'search'])->name('memorials.search');
+
+// Find Memorial directory (public)
+Route::get('/find-memorial', [MemorialDirectoryController::class, 'index'])->name('memorial.directory');
 
 // Memorial creation flow (multi-step signup)
 Route::prefix('create-memorial')->name('memorial.create.')->group(function () {
@@ -122,6 +129,7 @@ Route::prefix('m/{slug}')->where(['slug' => '[a-z0-9\-]+'])->name('memorial.api.
     Route::patch('/section', [MemorialApiController::class, 'updateSection'])->name('section');
     Route::post('/tribute', [MemorialApiController::class, 'storeTribute'])->name('tribute');
     Route::post('/track-share', [MemorialApiController::class, 'trackShare'])->name('track-share');
+    Route::get('/stats', [MemorialApiController::class, 'stats'])->name('stats');
     Route::post('/reaction', [MemorialApiController::class, 'storeReaction'])->name('reaction');
     Route::get('/posts', [MemorialApiController::class, 'posts'])->name('posts');
     Route::post('/posts', [MemorialApiController::class, 'storePost'])->name('posts.store');

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\MemorialStatsHelper;
 use App\Models\Memorial;
 use App\Models\MemorialView;
 use App\Models\Post;
@@ -49,7 +50,8 @@ class PublicMemorialController extends Controller
             auth()->user()->hasRole(['admin', 'super-admin'])
         );
 
-        $stats = $this->getMemorialStats($memorial);
+        $stats = MemorialStatsHelper::get($memorial);
+        $tributeCounts = $this->getTributeTypeCounts($memorial);
 
         return view('pages.memorials.public', [
             'title' => $memorial->full_name,
@@ -58,6 +60,7 @@ class PublicMemorialController extends Controller
             'canEdit' => $canEdit,
             'isAuthenticated' => auth()->check(),
             'memorialStats' => $stats,
+            'tributeCounts' => $tributeCounts,
             'scrollToTributeId' => null,
             'scrollToChapterId' => null,
             'shareMeta' => null,
@@ -103,13 +106,15 @@ class PublicMemorialController extends Controller
             auth()->user()->hasRole(['admin', 'super-admin'])
         );
 
-        $stats = $this->getMemorialStats($memorial);
+        $stats = MemorialStatsHelper::get($memorial);
 
         $authorName = $tribute->user?->name ?? $tribute->guest_name ?? 'Anonymous';
         $deceasedName = $memorial->full_name ?? 'Loved One';
         $age = $this->getDeceasedAge($memorial);
         $contentPreview = $tribute->message ? \Illuminate\Support\Str::limit(strip_tags($tribute->message), 150) : 'Left a ' . $tribute->type . ' in memory of ' . $deceasedName;
         $shareUrl = url()->route('memorial.tribute.public', ['memorial_slug' => $memorial->slug, 'share_id' => $tribute->share_id]);
+
+        $tributeCounts = $this->getTributeTypeCounts($memorial);
 
         return view('pages.memorials.public', [
             'title' => $memorial->full_name,
@@ -119,6 +124,7 @@ class PublicMemorialController extends Controller
             'canEdit' => $canEdit,
             'isAuthenticated' => auth()->check(),
             'memorialStats' => $stats,
+            'tributeCounts' => $tributeCounts,
             'scrollToTributeId' => $tribute->id,
             'scrollToChapterId' => null,
             'shareMeta' => [
@@ -168,13 +174,15 @@ class PublicMemorialController extends Controller
             auth()->user()->hasRole(['admin', 'super-admin'])
         );
 
-        $stats = $this->getMemorialStats($memorial);
+        $stats = MemorialStatsHelper::get($memorial);
 
         $authorName = $post->user?->name ?? $memorial->full_name ?? 'Anonymous';
         $deceasedName = $memorial->full_name ?? 'Loved One';
         $age = $this->getDeceasedAge($memorial);
         $contentPreview = $post->content ? \Illuminate\Support\Str::limit(strip_tags($post->content), 150) : ($post->title ?? 'A chapter in memory of ' . $deceasedName);
         $shareUrl = url()->route('memorial.chapter.public', ['memorial_slug' => $memorial->slug, 'share_id' => $post->share_id]);
+
+        $tributeCounts = $this->getTributeTypeCounts($memorial);
 
         return view('pages.memorials.public', [
             'title' => $memorial->full_name,
@@ -183,6 +191,7 @@ class PublicMemorialController extends Controller
             'canEdit' => $canEdit,
             'isAuthenticated' => auth()->check(),
             'memorialStats' => $stats,
+            'tributeCounts' => $tributeCounts,
             'scrollToTributeId' => null,
             'scrollToChapterId' => $post->id,
             'shareMeta' => [
@@ -192,6 +201,22 @@ class PublicMemorialController extends Controller
                 'image' => $memorial->profile_photo_url ? url($memorial->profile_photo_url) : null,
             ],
         ]);
+    }
+
+    private function getTributeTypeCounts(Memorial $memorial): array
+    {
+        $counts = $memorial->tributes()
+            ->where('is_approved', true)
+            ->selectRaw("type, COUNT(*) as cnt")
+            ->groupBy('type')
+            ->pluck('cnt', 'type');
+
+        return [
+            'flower' => (int) ($counts['flower'] ?? 0),
+            'candle' => (int) ($counts['candle'] ?? 0),
+            'note' => (int) ($counts['note'] ?? 0),
+            'total' => (int) $counts->sum(),
+        ];
     }
 
     private function getDeceasedAge(Memorial $memorial): ?string
@@ -227,45 +252,6 @@ class PublicMemorialController extends Controller
                 'viewed_at' => now(),
             ]);
         }
-    }
-
-    private function getMemorialStats(Memorial $memorial): array
-    {
-        $today = Carbon::today();
-        $lastWeek = Carbon::today()->subDays(7);
-
-        $viewsToday = (int) MemorialView::where('memorial_id', $memorial->id)
-            ->where('viewed_at', '>=', $today)
-            ->selectRaw('COUNT(DISTINCT visitor_hash) as cnt')
-            ->value('cnt');
-        $viewsLastWeek = (int) MemorialView::where('memorial_id', $memorial->id)
-            ->where('viewed_at', '>=', $lastWeek)
-            ->selectRaw('COUNT(DISTINCT visitor_hash) as cnt')
-            ->value('cnt');
-        $viewsAllTime = (int) MemorialView::where('memorial_id', $memorial->id)
-            ->selectRaw('COUNT(DISTINCT visitor_hash) as cnt')
-            ->value('cnt');
-
-        $sharesToday = (int) \App\Models\MemorialShare::where('memorial_id', $memorial->id)
-            ->where('shared_at', '>=', $today)
-            ->selectRaw('COUNT(DISTINCT visitor_hash) as cnt')
-            ->value('cnt');
-        $sharesLastWeek = (int) \App\Models\MemorialShare::where('memorial_id', $memorial->id)
-            ->where('shared_at', '>=', $lastWeek)
-            ->selectRaw('COUNT(DISTINCT visitor_hash) as cnt')
-            ->value('cnt');
-        $sharesAllTime = (int) \App\Models\MemorialShare::where('memorial_id', $memorial->id)
-            ->selectRaw('COUNT(DISTINCT visitor_hash) as cnt')
-            ->value('cnt');
-
-        return [
-            'views_today' => $viewsToday,
-            'views_last_week' => $viewsLastWeek,
-            'views_all_time' => $viewsAllTime,
-            'shares_today' => $sharesToday,
-            'shares_last_week' => $sharesLastWeek,
-            'shares_all_time' => $sharesAllTime,
-        ];
     }
 
     /**

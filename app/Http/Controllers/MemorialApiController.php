@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\HtmlHelper;
+use App\Helpers\MemorialStatsHelper;
 use App\Models\Comment;
 use App\Models\Memorial;
 use App\Models\MemorialShare;
@@ -567,7 +568,8 @@ class MemorialApiController extends Controller
     }
 
     /**
-     * Record a memorial profile share (when user shares to WhatsApp, Facebook, LinkedIn, or copies link).
+     * Record a memorial profile share (deduped: one record per visitor per type per day).
+     * Returns updated stats so the frontend can refresh counters immediately.
      */
     public function trackShare(Request $request, string $slug): JsonResponse
     {
@@ -581,14 +583,40 @@ class MemorialApiController extends Controller
         ]);
 
         $hash = hash('sha256', ($request->ip() ?? '') . '|' . ($request->userAgent() ?? ''));
-        MemorialShare::create([
-            'memorial_id' => $memorial->id,
-            'visitor_hash' => $hash,
-            'share_type' => $validated['share_type'],
-            'shared_at' => now(),
-        ]);
+        $today = \Carbon\Carbon::today();
 
-        return response()->json(['success' => true]);
+        $alreadyShared = MemorialShare::where('memorial_id', $memorial->id)
+            ->where('visitor_hash', $hash)
+            ->where('share_type', $validated['share_type'])
+            ->where('shared_at', '>=', $today)
+            ->exists();
+
+        if (!$alreadyShared) {
+            MemorialShare::create([
+                'memorial_id' => $memorial->id,
+                'visitor_hash' => $hash,
+                'share_type' => $validated['share_type'],
+                'shared_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'stats' => MemorialStatsHelper::get($memorial),
+        ]);
+    }
+
+    /**
+     * Return current view & share stats for a memorial (public, no auth).
+     */
+    public function stats(string $slug): JsonResponse
+    {
+        $memorial = Memorial::where('slug', $slug)->firstOrFail();
+        if (!$memorial->is_public) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        return response()->json(MemorialStatsHelper::get($memorial));
     }
 
     private function formatPost(Post $post): array

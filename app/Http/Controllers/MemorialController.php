@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Memorial;
 use App\Services\ClaudeBioGeneratorService;
 use App\Services\GeminiBioGeneratorService;
+use App\Services\NotificationService;
 use App\Services\OpenAIBioGeneratorService;
 use App\Services\TemplateBioGeneratorService;
 use Illuminate\Http\JsonResponse;
@@ -837,15 +838,21 @@ class MemorialController extends Controller
         }
 
         $validated = $request->validate([
-            'action' => ['required', 'in:deactivate,suspend,delete'],
+            'action' => ['required', 'in:activate,deactivate,suspend,delete'],
         ]);
 
         switch ($validated['action']) {
+            case 'activate':
+                $memorial->update(['status' => Memorial::STATUS_ACTIVE, 'is_public' => true]);
+                NotificationService::notifyMemorialStatusChange($memorial, 'active');
+                return back()->with('status', 'Memorial activated.');
             case 'deactivate':
                 $memorial->update(['status' => Memorial::STATUS_DEACTIVATED, 'is_public' => false]);
+                NotificationService::notifyMemorialStatusChange($memorial, 'deactivated');
                 return back()->with('status', 'Memorial deactivated.');
             case 'suspend':
                 $memorial->update(['status' => Memorial::STATUS_SUSPENDED, 'is_public' => false]);
+                NotificationService::notifyMemorialStatusChange($memorial, 'suspended');
                 return back()->with('status', 'Memorial suspended.');
             case 'delete':
                 $memorial->delete();

@@ -38,6 +38,22 @@ class SystemSetting extends Model
         'payments.pesapal_consumer_key' => ['value' => '', 'type' => 'string', 'group' => 'payments'],
         'payments.pesapal_consumer_secret' => ['value' => '', 'type' => 'encrypted', 'group' => 'payments'],
         'payments.pesapal_environment' => ['value' => 'sandbox', 'type' => 'string', 'group' => 'payments'],
+
+        // SMTP / Email
+        'smtp.enabled' => ['value' => '0', 'type' => 'boolean', 'group' => 'smtp'],
+        'smtp.host' => ['value' => '', 'type' => 'string', 'group' => 'smtp'],
+        'smtp.port' => ['value' => '587', 'type' => 'integer', 'group' => 'smtp'],
+        'smtp.username' => ['value' => '', 'type' => 'string', 'group' => 'smtp'],
+        'smtp.password' => ['value' => '', 'type' => 'encrypted', 'group' => 'smtp'],
+        'smtp.encryption' => ['value' => 'tls', 'type' => 'string', 'group' => 'smtp'],
+        'smtp.from_address' => ['value' => '', 'type' => 'string', 'group' => 'smtp'],
+        'smtp.from_name' => ['value' => '', 'type' => 'string', 'group' => 'smtp'],
+
+        // Notifications
+        'notifications.email_enabled' => ['value' => '0', 'type' => 'boolean', 'group' => 'notifications'],
+        'notifications.push_enabled' => ['value' => '0', 'type' => 'boolean', 'group' => 'notifications'],
+        'notifications.vapid_public_key' => ['value' => '', 'type' => 'string', 'group' => 'notifications'],
+        'notifications.vapid_private_key' => ['value' => '', 'type' => 'encrypted', 'group' => 'notifications'],
     ];
 
     public static function get(string $key, mixed $default = null): mixed

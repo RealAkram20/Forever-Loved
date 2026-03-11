@@ -7,6 +7,7 @@ use App\Http\Controllers\MemorialController;
 use App\Http\Controllers\MemorialDirectoryController;
 use App\Http\Controllers\MemorialMediaController;
 use App\Http\Controllers\MemorialSignupController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicMemorialController;
 use Illuminate\Support\Facades\Route;
@@ -51,6 +52,16 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('memorials/{memorial}/biography', [MemorialController::class, 'saveBiography'])->name('memorials.save-biography');
     Route::resource('memorials', MemorialController::class);
 
+// Notifications
+Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+Route::get('/notifications/dropdown', [NotificationController::class, 'dropdown'])->name('notifications.dropdown');
+Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+Route::post('/notifications/push/subscribe', [NotificationController::class, 'subscribePush'])->name('notifications.push.subscribe');
+Route::post('/notifications/push/unsubscribe', [NotificationController::class, 'unsubscribePush'])->name('notifications.push.unsubscribe');
+Route::post('/notifications/push/test', [NotificationController::class, 'testPush'])->name('notifications.push.test');
+
 // Profile
 Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
 Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -89,6 +100,12 @@ Route::prefix('settings')->name('settings.')->middleware('role:admin|super-admin
 
     Route::get('/payments', [SettingsController::class, 'payments'])->name('payments');
     Route::put('/payments', [SettingsController::class, 'updatePayments'])->name('payments.update');
+
+    Route::get('/smtp', [SettingsController::class, 'smtp'])->name('smtp');
+    Route::put('/smtp', [SettingsController::class, 'updateSmtp'])->name('smtp.update');
+
+    Route::get('/notifications', [SettingsController::class, 'notifications'])->name('notifications');
+    Route::put('/notifications', [SettingsController::class, 'updateNotifications'])->name('notifications.update');
 
     Route::get('/subscriptions', [SettingsController::class, 'subscriptions'])->name('subscriptions');
     Route::put('/subscriptions/{subscription}', [SettingsController::class, 'updateSubscription'])->name('subscriptions.update');

@@ -224,6 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (addStoryForm) {
+        let chapterFormSubmitting = false;
+
         cancelStoryBtn?.addEventListener('click', () => {
             if (chapterQuill) chapterQuill.setText('');
             tributePostForm?.reset();
@@ -231,8 +233,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tributePostForm?.addEventListener('submit', (e) => {
             e.preventDefault();
+            e.stopImmediatePropagation();
+            if (chapterFormSubmitting) return;
+            chapterFormSubmitting = true;
+
             const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Posting...';
+            form.style.pointerEvents = 'none';
+
+            const resetButton = () => {
+                chapterFormSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+                form.style.pointerEvents = '';
+            };
+
             const fd = new FormData();
+            fd.append('idempotency_key', crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2));
             fd.append('title', form.title?.value || '');
             fd.append('content', chapterQuill ? chapterQuill.root.innerHTML : (form.content?.value || ''));
             fd.append('_token', csrf);
@@ -241,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const guestEmail = document.getElementById('chapter-guest-email')?.value?.trim();
                 if (!guestName || !guestEmail) {
                     alert('Please enter your name and email to add your chapter.');
+                    resetButton();
                     return;
                 }
                 fd.append('guest_name', guestName);
@@ -332,10 +353,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             article.querySelector('[data-comment-toggle]')?.addEventListener('click', () => {
                                 article.querySelector(`[data-post-comments="${p.id}"]`)?.classList.toggle('hidden');
                             });
-                            article.querySelector('[data-comment-submit]')?.addEventListener('click', () => {
+                            article.querySelector('[data-comment-submit]')?.addEventListener('click', function() {
+                                const btn = this;
                                 const input = article.querySelector(`[data-comment-input="${p.id}"]`);
                                 const content = input?.value?.trim();
                                 if (!content) return;
+                                if (btn.disabled) return;
+                                btn.disabled = true;
+                                const origText = btn.textContent;
+                                btn.textContent = 'Posting...';
+                                const resetBtn = () => { btn.disabled = false; btn.textContent = origText; };
                                 const doSubmit = (guestName, guestEmail) => {
                                     const body = { content };
                                     if (guestName) body.guest_name = guestName;
@@ -354,8 +381,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 const countEl = article.querySelector(`[data-comment-container="${p.id}"] [data-comment-count]`);
                                                 if (countEl) countEl.textContent = parseInt(countEl.textContent || 0) + 1;
                                                 input.value = '';
-                                            }
-                                        });
+                                            } else if (data.error) alert(data.error);
+                                            resetBtn();
+                                        })
+                                        .catch(() => { alert('Something went wrong.'); resetBtn(); });
                                 };
                                 isAuthenticated ? doSubmit() : showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
                             });
@@ -365,6 +394,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (data.error) {
                         alert(data.error);
                     }
+                    resetButton();
+                })
+                .catch(() => {
+                    alert('Something went wrong. Please try again.');
+                    resetButton();
                 });
         });
     }
@@ -848,12 +882,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Tribute comment submit ---
     document.querySelectorAll('[data-tribute-comment-submit]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tributeId = parseInt(btn.dataset.tributeId);
+        btn.addEventListener('click', function() {
+            const tributeId = parseInt(this.dataset.tributeId);
             const input = document.querySelector(`[data-tribute-comment-input="${tributeId}"]`);
             const content = input?.value?.trim();
             if (!content) return;
-
+            if (this.disabled) return;
+            this.disabled = true;
+            const origText = this.textContent;
+            this.textContent = 'Posting...';
+            const resetBtn = () => { this.disabled = false; this.textContent = origText; };
             const doSubmit = (guestName, guestEmail) => {
                 const body = { content };
                 if (guestName) body.guest_name = guestName;
@@ -874,17 +912,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             const countEl = document.querySelector(`[data-tribute-comment-container="${tributeId}"] [data-tribute-comment-count]`);
                             if (countEl) countEl.textContent = parseInt((countEl.textContent || '0').replace(/\D/g, '') || 0) + 1;
                             input.value = '';
-                        } else if (data.error) {
-                            alert(data.error);
-                        }
-                    });
+                        } else if (data.error) alert(data.error);
+                        resetBtn();
+                    })
+                    .catch(() => { alert('Something went wrong.'); resetBtn(); });
             };
-
-            if (isAuthenticated) {
-                doSubmit();
-            } else {
-                showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
-            }
+            if (isAuthenticated) doSubmit();
+            else showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
         });
     });
 
@@ -911,7 +945,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const input = document.querySelector(`[data-tribute-reply-input="${parentId}"]`);
             const content = input?.value?.trim();
             if (!content) return;
-
+            if (submitBtn.disabled) return;
+            submitBtn.disabled = true;
+            const origText = submitBtn.textContent;
+            submitBtn.textContent = 'Posting...';
+            const resetBtn = () => { submitBtn.disabled = false; submitBtn.textContent = origText; };
             const doSubmit = (guestName, guestEmail) => {
                 const body = { content, parent_id: parentId };
                 if (guestName) body.guest_name = guestName;
@@ -948,17 +986,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (countEl) countEl.textContent = parseInt((countEl.textContent || '0').replace(/\D/g, '') || 0) + 1;
                             input.value = '';
                             replyForm?.classList.add('hidden');
-                        } else if (data.error) {
-                            alert(data.error);
-                        }
-                    });
+                        } else if (data.error) alert(data.error);
+                        resetBtn();
+                    })
+                    .catch(() => { alert('Something went wrong.'); resetBtn(); });
             };
-
-            if (isAuthenticated) {
-                doSubmit();
-            } else {
-                showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
-            }
+            if (isAuthenticated) doSubmit();
+            else showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
         }
     });
 
@@ -992,7 +1026,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const input = document.querySelector(`[data-reply-input="${parentId}"]`);
             const content = input?.value?.trim();
             if (!content) return;
-
+            if (submitBtn.disabled) return;
+            submitBtn.disabled = true;
+            const origText = submitBtn.textContent;
+            submitBtn.textContent = 'Posting...';
+            const resetBtn = () => { submitBtn.disabled = false; submitBtn.textContent = origText; };
             const doSubmit = (guestName, guestEmail) => {
                 const body = { content, parent_id: parentId };
                 if (guestName) body.guest_name = guestName;
@@ -1029,28 +1067,28 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (countEl) countEl.textContent = parseInt((countEl.textContent || '0').replace(/\D/g, '') || 0) + 1;
                             input.value = '';
                             replyForm?.classList.add('hidden');
-                        } else if (data.error) {
-                            alert(data.error);
-                        }
-                    });
+                        } else if (data.error) alert(data.error);
+                        resetBtn();
+                    })
+                    .catch(() => { alert('Something went wrong.'); resetBtn(); });
             };
-
-            if (isAuthenticated) {
-                doSubmit();
-            } else {
-                showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
-            }
+            if (isAuthenticated) doSubmit();
+            else showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
         }
     });
 
     // --- Comment submit ---
     document.querySelectorAll('[data-comment-submit]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const postId = parseInt(btn.dataset.postId);
+        btn.addEventListener('click', function() {
+            const postId = parseInt(this.dataset.postId);
             const input = document.querySelector(`[data-comment-input="${postId}"]`);
             const content = input?.value?.trim();
             if (!content) return;
-
+            if (this.disabled) return;
+            this.disabled = true;
+            const origText = this.textContent;
+            this.textContent = 'Posting...';
+            const resetBtn = () => { this.disabled = false; this.textContent = origText; };
             const doSubmit = (guestName, guestEmail) => {
                 const body = { content };
                 if (guestName) body.guest_name = guestName;
@@ -1075,17 +1113,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             const countEl = document.querySelector(`[data-comment-container="${postId}"] [data-comment-count]`);
                             if (countEl) countEl.textContent = parseInt((countEl.textContent || '0').replace(/\D/g, '') || 0) + 1;
                             input.value = '';
-                        } else if (data.error) {
-                            alert(data.error);
-                        }
-                    });
+                        } else if (data.error) alert(data.error);
+                        resetBtn();
+                    })
+                    .catch(() => { alert('Something went wrong.'); resetBtn(); });
             };
-
-            if (isAuthenticated) {
-                doSubmit();
-            } else {
-                showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
-            }
+            if (isAuthenticated) doSubmit();
+            else showGuestModal({ type: 'comment', payload: { content }, callback: (name, email) => doSubmit(name, email) });
         });
     });
 

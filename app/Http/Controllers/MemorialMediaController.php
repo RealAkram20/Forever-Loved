@@ -8,6 +8,8 @@ use App\Models\Media;
 use App\Models\Memorial;
 use App\Models\Post;
 use App\Models\StoryChapter;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -184,7 +186,17 @@ class MemorialMediaController extends Controller
             'files.*' => ['file', 'max:102400'], // 100MB
             'guest_name' => ['nullable', 'string', 'max:255'],
             'guest_email' => ['nullable', 'email'],
+            'idempotency_key' => ['nullable', 'string', 'max:64'],
         ]);
+
+        $idempotencyKey = $validated['idempotency_key'] ?? null;
+        if ($idempotencyKey) {
+            $cacheKey = 'tribute_post:' . $memorial->id . ':' . $idempotencyKey;
+            $cached = Cache::get($cacheKey);
+            if ($cached !== null) {
+                return response()->json($cached);
+            }
+        }
 
         $userId = $request->user()?->id;
         $guestName = $validated['guest_name'] ?? null;
@@ -253,10 +265,19 @@ class MemorialMediaController extends Controller
 
         $post->load('media', 'user');
 
-        return response()->json([
+        $chapterTitle = $post->title ?: ($post->storyChapter?->title ?? 'A chapter');
+        $authorName = $post->user?->name ?? $guestName ?? 'A guest';
+        NotificationService::notifyNewLifeChapter($memorial, $chapterTitle, $userId, $post, $authorName);
+
+        $response = [
             'success' => true,
             'post' => $this->formatPost($post),
-        ]);
+        ];
+        if ($idempotencyKey) {
+            Cache::put('tribute_post:' . $memorial->id . ':' . $idempotencyKey, $response, now()->addMinutes(5));
+        }
+
+        return response()->json($response);
     }
 
     private function canEdit(Memorial $memorial): bool

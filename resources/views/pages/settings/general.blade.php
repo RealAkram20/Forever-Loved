@@ -9,6 +9,17 @@
         </div>
     @endif
 
+    @if ($errors->any())
+        <div class="mb-4 rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3">
+            <p class="text-sm font-medium text-red-700 dark:text-red-400 mb-1">Please fix the following errors:</p>
+            <ul class="list-disc list-inside text-sm text-red-600 dark:text-red-400">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <form action="{{ route('settings.general.update') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
         @csrf
         @method('PUT')
@@ -18,22 +29,16 @@
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">App Name</label>
-                    <input type="text" name="branding.app_name"
+                    <input type="text" name="branding[app_name]"
                         value="{{ old('branding.app_name', $settings['branding.app_name'] ?? 'Forever Loved') }}"
                         class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:text-white/90 dark:border-gray-700 placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden" />
-                    @error('branding.app_name')
-                        <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                    @enderror
                 </div>
 
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tagline</label>
-                    <input type="text" name="branding.tagline"
+                    <input type="text" name="branding[tagline]"
                         value="{{ old('branding.tagline', $settings['branding.tagline'] ?? '') }}"
                         class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:text-white/90 dark:border-gray-700 placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden" />
-                    @error('branding.tagline')
-                        <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                    @enderror
                 </div>
 
                 <div>
@@ -62,7 +67,7 @@
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Primary Color</label>
                     <div class="flex items-center gap-3">
-                        <input type="color" name="branding.primary_color"
+                        <input type="color" name="branding[primary_color]"
                             value="{{ old('branding.primary_color', $settings['branding.primary_color'] ?? '#465fff') }}"
                             class="h-11 w-14 cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700 p-1" />
                         <input type="text" readonly
@@ -76,7 +81,7 @@
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Secondary Color</label>
                     <div class="flex items-center gap-3">
-                        <input type="color" name="branding.secondary_color"
+                        <input type="color" name="branding[secondary_color]"
                             value="{{ old('branding.secondary_color', $settings['branding.secondary_color'] ?? '#1e3a5f') }}"
                             class="h-11 w-14 cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700 p-1" />
                         <input type="text" readonly
@@ -90,7 +95,7 @@
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Accent Color</label>
                     <div class="flex items-center gap-3">
-                        <input type="color" name="branding.accent_color"
+                        <input type="color" name="branding[accent_color]"
                             value="{{ old('branding.accent_color', $settings['branding.accent_color'] ?? '#f59e0b') }}"
                             class="h-11 w-14 cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700 p-1" />
                         <input type="text" readonly

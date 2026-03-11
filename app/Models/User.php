@@ -70,4 +70,19 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserSubscription::class);
     }
+
+    public function notifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function unreadNotifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Notification::class)->whereNull('read_at');
+    }
+
+    public function pushSubscriptions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
 }

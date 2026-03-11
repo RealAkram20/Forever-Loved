@@ -7,6 +7,7 @@ use App\Models\SystemSetting;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Models\UserSubscription;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -203,6 +204,88 @@ class SettingsController extends Controller
         return back()->with('success', 'Payment settings updated successfully.');
     }
 
+    // ─── SMTP / Email ───────────────────────────────────────────────
+
+    public function smtp()
+    {
+        $settings = SystemSetting::getByGroup('smtp');
+
+        return view('pages.settings.smtp', [
+            'title' => 'SMTP Configuration',
+            'settings' => $settings,
+        ]);
+    }
+
+    public function updateSmtp(Request $request)
+    {
+        $request->validate([
+            'smtp.enabled' => 'required|in:0,1',
+            'smtp.host' => 'nullable|string|max:255',
+            'smtp.port' => 'required|integer|min:1|max:65535',
+            'smtp.username' => 'nullable|string|max:255',
+            'smtp.password' => 'nullable|string|max:255',
+            'smtp.encryption' => 'required|in:tls,ssl,none',
+            'smtp.from_address' => 'nullable|email|max:255',
+            'smtp.from_name' => 'nullable|string|max:255',
+        ]);
+
+        $keys = [
+            'smtp.enabled', 'smtp.host', 'smtp.port',
+            'smtp.username', 'smtp.encryption',
+            'smtp.from_address', 'smtp.from_name',
+        ];
+
+        foreach ($keys as $key) {
+            SystemSetting::set($key, $request->input($key));
+        }
+
+        $password = $request->input('smtp.password');
+        if ($password && $password !== '••••••••') {
+            SystemSetting::set('smtp.password', $password);
+        }
+
+        return back()->with('success', 'SMTP settings updated successfully.');
+    }
+
+    // ─── Notification Settings ──────────────────────────────────────
+
+    public function notifications()
+    {
+        $settings = SystemSetting::getByGroup('notifications');
+
+        return view('pages.settings.notifications', [
+            'title' => 'Notification Settings',
+            'settings' => $settings,
+        ]);
+    }
+
+    public function updateNotifications(Request $request)
+    {
+        $request->validate([
+            'notifications.email_enabled' => 'required|in:0,1',
+            'notifications.push_enabled' => 'required|in:0,1',
+            'notifications.vapid_public_key' => 'nullable|string|max:500',
+            'notifications.vapid_private_key' => 'nullable|string|max:500',
+        ]);
+
+        $keys = [
+            'notifications.email_enabled',
+            'notifications.push_enabled',
+            'notifications.vapid_public_key',
+        ];
+
+        foreach ($keys as $key) {
+            SystemSetting::set($key, $request->input($key));
+        }
+
+        $vapidPrivate = $request->input('notifications.vapid_private_key');
+        if ($vapidPrivate && $vapidPrivate !== '••••••••') {
+            SystemSetting::set('notifications.vapid_private_key', $vapidPrivate);
+        }
+
+        return back()->with('success', 'Notification settings updated successfully.');
+    }
+
     // ─── Subscriptions ───────────────────────────────────────────────
 
     public function subscriptions()
@@ -223,7 +306,16 @@ class SettingsController extends Controller
             'status' => 'required|in:active,cancelled,expired,paused',
         ]);
 
+        $previousStatus = $subscription->status;
         $subscription->update(['status' => $request->status]);
+
+        if ($request->status === 'cancelled' && $previousStatus !== 'cancelled') {
+            $user = $subscription->user;
+            $planName = $subscription->plan?->name ?? 'subscription';
+            if ($user) {
+                NotificationService::notifyPaymentCanceled($user, $planName);
+            }
+        }
 
         return back()->with('success', 'Subscription updated.');
     }

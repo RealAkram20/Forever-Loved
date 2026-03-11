@@ -13,6 +13,7 @@ use App\Models\Reaction;
 use App\Models\StoryChapter;
 use App\Models\Tribute;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -104,6 +105,8 @@ class MemorialApiController extends Controller
                     'password' => null,
                 ]);
 
+                NotificationService::notifyNewUserSignup($user);
+
                 try {
                     $setupUrl = route('password.request');
                     Mail::raw(
@@ -133,6 +136,9 @@ class MemorialApiController extends Controller
 
         $tribute->load('user');
 
+        $authorName = $tribute->user?->name ?? $tribute->guest_name ?? 'Anonymous';
+        NotificationService::notifyNewTribute($memorial, $validated['type'], $authorName, $userId, $tribute);
+
         return response()->json([
             'success' => true,
             'tribute' => [
@@ -140,7 +146,7 @@ class MemorialApiController extends Controller
                 'share_id' => $tribute->share_id,
                 'type' => $tribute->type,
                 'message' => $tribute->message,
-                'author' => $tribute->user?->name ?? $tribute->guest_name ?? 'Anonymous',
+                'author' => $authorName,
                 'created_at' => $tribute->created_at->diffForHumans(),
                 'created_at_iso' => $tribute->created_at->toIso8601String(),
             ],
@@ -290,6 +296,8 @@ class MemorialApiController extends Controller
             'sort_order' => $memorial->storyChapters()->max('sort_order') + 1,
         ]);
 
+        NotificationService::notifyNewLifeChapter($memorial, $validated['title'], auth()->id(), null, auth()->user()?->name);
+
         return response()->json(['success' => true, 'chapter' => $chapter]);
     }
 
@@ -320,6 +328,9 @@ class MemorialApiController extends Controller
             'location' => $validated['location'] ?? null,
             'metadata' => $validated['metadata'] ?? null,
         ]);
+
+        $chapterTitle = $post->title ?: ($post->storyChapter?->title ?? 'A chapter');
+        NotificationService::notifyNewLifeChapter($memorial, $chapterTitle, $request->user()?->id, $post);
 
         return response()->json(['success' => true, 'post' => $this->formatPost($post)]);
     }
@@ -471,6 +482,8 @@ class MemorialApiController extends Controller
             'is_approved' => true,
         ]);
 
+        NotificationService::notifyCommentOnChapter($post, $comment, $userId);
+
         return response()->json([
             'success' => true,
             'comment' => [
@@ -554,6 +567,8 @@ class MemorialApiController extends Controller
             'content' => trim($validated['content']),
             'is_approved' => true,
         ]);
+
+        NotificationService::notifyCommentOnTribute($tribute, $comment, $userId);
 
         return response()->json([
             'success' => true,

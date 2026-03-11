@@ -7,6 +7,7 @@ use App\Models\Memorial;
 use App\Models\MemorialView;
 use App\Models\Post;
 use App\Models\Tribute;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -275,7 +276,7 @@ class PublicMemorialController extends Controller
         $guestName = $request->user()?->name ?? $validated['guest_name'] ?? 'Anonymous';
         $guestEmail = $request->user()?->email ?? $validated['guest_email'] ?? null;
 
-        Tribute::create([
+        $tribute = Tribute::create([
             'memorial_id' => $memorial->id,
             'user_id' => $request->user()?->id,
             'type' => $validated['type'],
@@ -284,6 +285,8 @@ class PublicMemorialController extends Controller
             'guest_email' => $guestEmail,
             'is_approved' => true,
         ]);
+
+        NotificationService::notifyNewTribute($memorial, $validated['type'], $guestName, $request->user()?->id, $tribute);
 
         return back()->with('status', 'Thank you for your tribute.');
     }

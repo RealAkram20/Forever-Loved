@@ -218,4 +218,91 @@
 
 @stack('scripts')
 
+@auth
+<script>
+(function() {
+    const VAPID_PUBLIC_KEY = @json(App\Models\SystemSetting::get('notifications.vapid_public_key', ''));
+    const PUSH_ENABLED = @json((bool) App\Models\SystemSetting::get('notifications.push_enabled', false));
+
+    if (!PUSH_ENABLED || !VAPID_PUBLIC_KEY || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        return;
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    async function initPush() {
+        try {
+            const registration = await navigator.serviceWorker.register('{{ asset("sw.js") }}');
+            const existingSub = await registration.pushManager.getSubscription();
+            if (existingSub) {
+                return;
+            }
+
+            if (Notification.permission === 'denied') {
+                return;
+            }
+
+            if (Notification.permission === 'default') {
+                window.__pushRegistration = registration;
+                return;
+            }
+
+            await subscribePush(registration);
+        } catch (e) {
+            console.warn('Push init failed:', e);
+        }
+    }
+
+    async function subscribePush(registration) {
+        try {
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            });
+
+            const subJson = subscription.toJSON();
+            subJson.contentEncoding = (PushManager.supportedContentEncodings?.includes('aes128gcm')) ? 'aes128gcm' : 'aesgcm';
+
+            await fetch('/notifications/push/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(subJson),
+            });
+        } catch (e) {
+            console.warn('Push subscribe failed:', e);
+        }
+    }
+
+    window.__subscribePush = async function() {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            const reg = window.__pushRegistration || await navigator.serviceWorker.ready;
+            await subscribePush(reg);
+            return true;
+        }
+        return false;
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPush);
+    } else {
+        initPush();
+    }
+})();
+</script>
+@endauth
+
 </html>

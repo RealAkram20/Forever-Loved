@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Memorial;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Services\TemplateBioGeneratorService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
@@ -111,6 +112,7 @@ class MemorialSignupController extends Controller
         ]);
 
         event(new Registered($user));
+        NotificationService::notifyNewUserSignup($user);
         Auth::login($user);
 
         return redirect()->route('memorial.create.step3');

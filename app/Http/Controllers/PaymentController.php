@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Memorial;
 use App\Models\PaymentOrder;
 use App\Models\SubscriptionPlan;
 use App\Models\SystemSetting;
@@ -9,6 +10,7 @@ use App\Models\UserSubscription;
 use App\Services\NotificationService;
 use App\Services\PesapalService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class PaymentController extends Controller
@@ -18,12 +20,32 @@ class PaymentController extends Controller
      */
     public function createOrder(Request $request)
     {
-        $request->validate([
-            'plan_id' => ['required', 'exists:subscription_plans,id'],
-            'payment_method' => ['nullable', 'string', 'in:mtn,airtel,card'],
-            'from_signup' => ['nullable', 'boolean'],
-            'memorial_slug' => ['nullable', 'string', 'max:255'],
-        ]);
+        try {
+            return $this->processCreateOrder($request);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'error' => config('app.debug') ? $e->getMessage() : 'Payment failed. Please try again.',
+            ], 500);
+        }
+    }
+
+    private function processCreateOrder(Request $request)
+    {
+        try {
+            $request->validate([
+                'plan_id' => ['required', 'exists:subscription_plans,id'],
+                'payment_method' => ['nullable', 'string', 'in:mtn,airtel,card'],
+                'phone_number' => ['nullable', 'string', 'max:20'],
+                'from_signup' => ['nullable', 'boolean'],
+                'memorial_slug' => ['nullable', 'string', 'max:255'],
+                'memorial_id' => ['nullable', 'integer', 'exists:memorials,id'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $firstError = collect($e->errors())->flatten()->first();
+            return response()->json(['success' => false, 'error' => $firstError ?? 'Invalid request.'], 422);
+        }
 
         if (! (bool) SystemSetting::get('payments.enabled', false)) {
             return response()->json(['success' => false, 'error' => 'Payments are not enabled.'], 400);
@@ -31,7 +53,7 @@ class PaymentController extends Controller
 
         $pesapal = app(PesapalService::class);
         if (! $pesapal->isEnabled()) {
-            return response()->json(['success' => false, 'error' => 'Pesapal is not configured.'], 400);
+            return response()->json(['success' => false, 'error' => 'Pesapal is not configured. Check Admin → Settings → Payments.'], 400);
         }
 
         $plan = SubscriptionPlan::findOrFail($request->plan_id);
@@ -40,11 +62,28 @@ class PaymentController extends Controller
         }
 
         $user = $request->user();
+
+        $memorial = null;
+        $memorialSlug = $request->memorial_slug;
+        $memorialId = $request->memorial_id;
+        if ($memorialId) {
+            $memorial = \App\Models\Memorial::where('id', $memorialId)->where('user_id', $user->id)->first();
+        } elseif ($memorialSlug) {
+            $memorial = \App\Models\Memorial::where('slug', $memorialSlug)->where('user_id', $user->id)->first();
+        }
+        if (!$memorial) {
+            return response()->json(['success' => false, 'error' => 'Please select a memorial for this subscription.'], 400);
+        }
+        if (! $user) {
+            return response()->json(['success' => false, 'error' => 'Please log in to continue.'], 401);
+        }
+
         $currency = SystemSetting::get('payments.currency', 'USD');
         $merchantRef = 'SUB-' . strtoupper(Str::random(8)) . '-' . time();
 
         $order = PaymentOrder::create([
             'user_id' => $user->id,
+            'memorial_id' => $memorial->id,
             'subscription_plan_id' => $plan->id,
             'merchant_reference' => $merchantRef,
             'amount' => $plan->price,
@@ -52,7 +91,10 @@ class PaymentController extends Controller
             'status' => 'pending',
             'payment_gateway' => 'pesapal',
             'payment_method' => $request->payment_method,
-            'metadata' => $request->only(['from_signup', 'memorial_slug']),
+            'metadata' => array_filter([
+                'from_signup' => $request->from_signup,
+                'memorial_slug' => $memorial->slug,
+            ]),
         ]);
 
         $billingAddress = [
@@ -66,8 +108,8 @@ class PaymentController extends Controller
             $billingAddress['phone_number'] = $request->input('phone_number', '');
         }
 
-        $callbackUrl = route('payment.callback');
-        $cancellationUrl = route('subscription.index');
+        $callbackUrl = $pesapal->getCallbackUrl('payment.callback');
+        $cancellationUrl = $pesapal->getCallbackUrl('subscription.index');
 
         $result = $pesapal->submitOrder(
             $merchantRef,
@@ -81,7 +123,14 @@ class PaymentController extends Controller
 
         if (! $result['success']) {
             $order->update(['status' => 'failed']);
-            return response()->json(['success' => false, 'error' => $result['error'] ?? 'Payment initiation failed'], 400);
+            $errorMsg = $result['error'] ?? 'Payment initiation failed';
+            if (str_contains(strtolower($errorMsg), 'ipn')) {
+                $errorMsg = 'IPN not configured. Register your IPN URL in Pesapal dashboard, then add the IPN ID in Admin → Settings → Payments.';
+            }
+            if (str_contains(strtolower($errorMsg), 'auth')) {
+                $errorMsg = 'Pesapal authentication failed. Check your Consumer Key and Secret in Admin → Settings → Payments.';
+            }
+            return response()->json(['success' => false, 'error' => $errorMsg], 400);
         }
 
         $order->update(['order_tracking_id' => $result['order_tracking_id'] ?? null]);
@@ -111,10 +160,22 @@ class PaymentController extends Controller
         }
 
         $pesapal = app(PesapalService::class);
-        $status = $pesapal->getTransactionStatus($orderTrackingId);
+        $status = null;
+        foreach ([0, 1, 2] as $attempt) {
+            if ($attempt > 0) {
+                usleep(500000 * $attempt); // 0.5s, 1s delay before retry
+            }
+            $status = $pesapal->getTransactionStatus($orderTrackingId);
+            if ($status && $pesapal->isPaymentCompleted($status)) {
+                break;
+            }
+            if ($status && $pesapal->isPaymentFailed($status)) {
+                break;
+            }
+        }
 
         if (! $status) {
-            return redirect()->route('subscription.index')->with('error', 'Could not verify payment status.');
+            return redirect()->route('subscription.index')->with('error', 'Could not verify payment status. The order will update when Pesapal sends the IPN notification.');
         }
 
         return $this->processPaymentResult($order, $status, 'callback');
@@ -147,9 +208,19 @@ class PaymentController extends Controller
         }
 
         $pesapal = app(PesapalService::class);
-        $status = $pesapal->getTransactionStatus($orderTrackingId);
+        $status = null;
+        foreach ([0, 1, 2, 3] as $attempt) {
+            if ($attempt > 0) {
+                usleep(300000 * $attempt); // 0.3s, 0.6s, 0.9s delay before retry
+            }
+            $status = $pesapal->getTransactionStatus($orderTrackingId);
+            if ($status && ($pesapal->isPaymentCompleted($status) || $pesapal->isPaymentFailed($status))) {
+                break;
+            }
+        }
 
         if (! $status) {
+            Log::warning('Pesapal IPN: getTransactionStatus returned null', ['orderTrackingId' => $orderTrackingId, 'merchantRef' => $merchantRef]);
             return response()->json(['orderNotificationType' => 'IPNCHANGE', 'status' => 500], 200);
         }
 
@@ -168,6 +239,15 @@ class PaymentController extends Controller
         $pesapal = app(PesapalService::class);
 
         if ($pesapal->isPaymentCompleted($status)) {
+            $memorial = $order->memorial;
+            if (!$memorial || ($memorial->status ?? Memorial::STATUS_ACTIVE) !== Memorial::STATUS_ACTIVE) {
+                $order->update(['status' => 'cancelled']);
+                if ($source === 'callback') {
+                    return redirect()->route('subscription.index')->with('error', 'Payment cancelled: memorial no longer available.');
+                }
+                return response()->json(['status' => 200], 200);
+            }
+
             $order->update([
                 'status' => 'completed',
                 'confirmation_code' => $status['confirmation_code'] ?? null,
@@ -183,21 +263,30 @@ class PaymentController extends Controller
                     number_format($order->amount, 2) . ' ' . $order->currency
                 );
                 $memorialSlug = $order->metadata['memorial_slug'] ?? null;
+                $isAdminCreated = ($order->metadata['admin_created'] ?? false) === true;
                 if ($memorialSlug) {
                     return redirect()->route('memorial.create.preparing', ['slug' => $memorialSlug])
                         ->with('success', 'Payment successful! Your subscription is now active.');
+                }
+                if ($isAdminCreated) {
+                    return redirect()->route('settings.payment-orders')
+                        ->with('success', 'Payment successful! Order completed and subscription activated.');
                 }
                 return redirect()->route('subscription.index')->with('success', 'Payment successful! Your subscription is now active.');
             }
         } elseif ($pesapal->isPaymentFailed($status)) {
             $order->update(['status' => 'failed']);
             if ($source === 'callback') {
-                return redirect()->route('subscription.index')->with('error', 'Payment failed. Please try again.');
+                $isAdminCreated = ($order->metadata['admin_created'] ?? false) === true;
+                $target = $isAdminCreated ? route('settings.payment-orders') : route('subscription.index');
+                return redirect($target)->with('error', 'Payment failed. Please try again.');
             }
         }
 
         if ($source === 'callback') {
-            return redirect()->route('subscription.index')->with('info', 'Payment is being processed. We will notify you when it is complete.');
+            $isAdminCreated = ($order->metadata['admin_created'] ?? false) === true;
+            $target = $isAdminCreated ? route('settings.payment-orders') : route('subscription.index');
+            return redirect($target)->with('info', 'Payment is being processed. We will notify you when it is complete.');
         }
 
         return response()->json(['status' => 200], 200);
@@ -207,22 +296,33 @@ class PaymentController extends Controller
     {
         $plan = $order->plan;
         $user = $order->user;
+        $memorial = $order->memorial;
+        if (!$plan || !$user || !$memorial) {
+            return;
+        }
 
         $startsAt = now();
-        $endsAt = match ($plan->interval) {
+        $endsAt = match ($plan->interval ?? 'monthly') {
             'monthly' => $startsAt->copy()->addMonth(),
             'yearly' => $startsAt->copy()->addYear(),
             default => null,
         };
 
-        UserSubscription::create([
+        $subscription = UserSubscription::create([
             'user_id' => $user->id,
+            'memorial_id' => $memorial->id,
             'subscription_plan_id' => $plan->id,
             'starts_at' => $startsAt,
             'ends_at' => $endsAt,
             'status' => 'active',
             'payment_gateway' => 'pesapal',
             'payment_reference' => $order->merchant_reference,
+        ]);
+
+        $memorial->update([
+            'plan' => 'paid',
+            'subscription_plan_id' => $plan->id,
+            'user_subscription_id' => $subscription->id,
         ]);
     }
 }

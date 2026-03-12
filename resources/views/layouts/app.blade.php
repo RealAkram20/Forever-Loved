@@ -214,6 +214,67 @@
             </div>
         </div>
     </div>
+
+    {{-- Admin push opt-in popup: system is enabled, ask if they want to receive push in this browser --}}
+    @auth
+    @php
+        $vapidSet = !empty(App\Models\SystemSetting::get('notifications.vapid_public_key', ''));
+        $pushConfigured = App\Models\SystemSetting::get('notifications.push_enabled', false) && $vapidSet;
+        $userHasNoPushSub = auth()->user()->pushSubscriptions()->count() === 0;
+        $showPushModal = auth()->user()->hasRole(['admin','super-admin']) && $pushConfigured && $userHasNoPushSub && !session('admin_push_onboarding_dismissed');
+    @endphp
+    @if($showPushModal)
+    <div x-data="{ open: true, enabling: false }" x-show="open" x-cloak
+        class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100">
+        <div class="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-xl"
+            @click.self="open = false">
+            <div class="flex items-start gap-4">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/30">
+                    <svg class="h-6 w-6 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Receive Push Notifications?</h3>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Push is enabled for the system. Enable in this browser to get instant alerts for new signups, tributes, and payments.</p>
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <button type="button" @click="
+                            enabling = true;
+                            if (typeof window.__subscribePush === 'function') {
+                                window.__subscribePush().then(ok => {
+                                    enabling = false;
+                                    if (ok) { open = false; if (window.$toast) $toast('success', 'Push notifications enabled!'); }
+                                    else { if (window.$toast) $toast('error', 'Permission denied.'); }
+                                }).catch(e => {
+                                    enabling = false;
+                                    if (window.$toast) $toast('error', e.message || 'Failed to enable.');
+                                });
+                            } else {
+                                enabling = false;
+                                if (window.$toast) $toast('error', 'Please refresh the page and try again.');
+                            }
+                        " :disabled="enabling"
+                            class="inline-flex items-center rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 transition">
+                            <span x-show="enabling">Enabling...</span>
+                            <span x-show="!enabling">Yes, Enable</span>
+                        </button>
+                        <button type="button" @click="
+                            open = false;
+                            fetch('{{ route('admin.dismiss-push-onboarding') }}', { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content, 'Accept': 'application/json' } });
+                        "
+                            class="inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            No
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+    @endauth
 </body>
 
 @stack('scripts')
@@ -239,11 +300,30 @@
         return outputArray;
     }
 
+    async function syncSubscriptionToServer(subscription) {
+        try {
+            const subJson = subscription.toJSON();
+            subJson.contentEncoding = (PushManager.supportedContentEncodings?.includes('aes128gcm')) ? 'aes128gcm' : 'aesgcm';
+            await fetch('/notifications/push/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(subJson),
+            });
+        } catch (e) {
+            console.warn('Push sync failed:', e);
+        }
+    }
+
     async function initPush() {
         try {
             const registration = await navigator.serviceWorker.register('{{ asset("sw.js") }}');
             const existingSub = await registration.pushManager.getSubscription();
             if (existingSub) {
+                await syncSubscriptionToServer(existingSub);
                 return;
             }
 

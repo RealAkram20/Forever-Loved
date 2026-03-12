@@ -128,6 +128,51 @@
                 </form>
             </x-common.component-card>
 
+            {{-- Notification Preferences --}}
+            <x-common.component-card title="Notification Preferences" desc="Choose which types of notifications you want to receive.">
+                <form method="POST" action="{{ route('profile.update') }}" class="space-y-5">
+                    @csrf @method('PUT')
+                    <input type="hidden" name="name" value="{{ $user->name }}" />
+                    <input type="hidden" name="email" value="{{ $user->email }}" />
+
+                    <div class="space-y-4">
+                        <label class="flex items-center justify-between gap-4 cursor-pointer">
+                            <span class="text-sm font-medium text-gray-800 dark:text-white/90">Push Notifications</span>
+                            <input type="hidden" name="push_notifications_enabled" value="0" />
+                            <input type="checkbox" name="push_notifications_enabled" value="1"
+                                {{ $user->push_notifications_enabled ? 'checked' : '' }}
+                                class="rounded border-gray-300 dark:border-gray-600 text-brand-500 focus:ring-brand-500" />
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 -mt-2">Browser push notifications (requires enabling in the bell menu)</p>
+
+                        <label class="flex items-center justify-between gap-4 cursor-pointer">
+                            <span class="text-sm font-medium text-gray-800 dark:text-white/90">In-App Notifications</span>
+                            <input type="hidden" name="in_app_notifications_enabled" value="0" />
+                            <input type="checkbox" name="in_app_notifications_enabled" value="1"
+                                {{ $user->in_app_notifications_enabled ? 'checked' : '' }}
+                                class="rounded border-gray-300 dark:border-gray-600 text-brand-500 focus:ring-brand-500" />
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 -mt-2">Notifications in the bell dropdown</p>
+
+                        <label class="flex items-center justify-between gap-4 cursor-pointer">
+                            <span class="text-sm font-medium text-gray-800 dark:text-white/90">Email Notifications</span>
+                            <input type="hidden" name="email_notifications_enabled" value="0" />
+                            <input type="checkbox" name="email_notifications_enabled" value="1"
+                                {{ $user->email_notifications_enabled ? 'checked' : '' }}
+                                class="rounded border-gray-300 dark:border-gray-600 text-brand-500 focus:ring-brand-500" />
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 -mt-2">Email alerts for new activity</p>
+                    </div>
+
+                    <div class="pt-1">
+                        <button type="submit"
+                            class="h-11 rounded-lg bg-brand-500 px-6 text-sm font-medium text-white hover:bg-brand-600 transition">
+                            Save Preferences
+                        </button>
+                    </div>
+                </form>
+            </x-common.component-card>
+
             {{-- Update Password --}}
             <x-common.component-card title="Update Password" desc="Use a strong password to protect your account.">
                 <form method="POST" action="{{ route('profile.password') }}" class="space-y-5">

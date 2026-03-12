@@ -27,6 +27,8 @@ class NotificationService
         ?string $actionUrl = null,
         ?array $data = null
     ): Notification {
+        $user = User::find($userId);
+
         $notification = Notification::create([
             'user_id' => $userId,
             'type' => $type,
@@ -37,26 +39,29 @@ class NotificationService
             'data' => $data,
         ]);
 
-        try {
-            if (static::isEmailEnabled()) {
+        $sendEmail = $user && $user->email_notifications_enabled && static::isEmailEnabled();
+        $sendPush = $user && $user->push_notifications_enabled && static::isPushEnabled();
+
+        if ($sendEmail) {
+            try {
                 static::dispatchEmail($notification);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send email notification', [
+                    'notification_id' => $notification->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
-        } catch (\Throwable $e) {
-            Log::warning('Failed to send email notification', [
-                'notification_id' => $notification->id,
-                'error' => $e->getMessage(),
-            ]);
         }
 
-        try {
-            if (static::isPushEnabled()) {
+        if ($sendPush) {
+            try {
                 static::dispatchPush($notification);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send push notification', [
+                    'notification_id' => $notification->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
-        } catch (\Throwable $e) {
-            Log::warning('Failed to send push notification', [
-                'notification_id' => $notification->id,
-                'error' => $e->getMessage(),
-            ]);
         }
 
         return $notification;
@@ -334,13 +339,18 @@ class NotificationService
         $reports = [];
         foreach ($webPush->flush() as $report) {
             $endpoint = $report->getRequest()->getUri()->__toString();
+            $statusCode = $report->getResponse()?->getStatusCode();
+            $vapidMismatch = $statusCode === 403 || str_contains($report->getReason(), 'VAPID');
+            $shouldRemove = $report->isSubscriptionExpired() || $vapidMismatch;
+
             $reports[] = [
                 'success' => $report->isSuccess(),
                 'reason' => $report->getReason(),
                 'expired' => $report->isSubscriptionExpired(),
                 'endpoint' => $endpoint,
             ];
-            if ($report->isSubscriptionExpired()) {
+
+            if ($shouldRemove) {
                 PushSubscription::where('endpoint', $endpoint)->delete();
             }
         }
@@ -351,11 +361,20 @@ class NotificationService
 
     public static function unreadCount(int $userId): int
     {
+        $user = User::find($userId);
+        if (!$user || !$user->in_app_notifications_enabled) {
+            return 0;
+        }
         return Notification::where('user_id', $userId)->whereNull('read_at')->count();
     }
 
     public static function getRecentForUser(int $userId, int $limit = 8): array
     {
+        $user = User::find($userId);
+        if (!$user || !$user->in_app_notifications_enabled) {
+            return [];
+        }
+
         $notifications = Notification::where('user_id', $userId)
             ->orderByDesc('created_at')
             ->limit($limit)

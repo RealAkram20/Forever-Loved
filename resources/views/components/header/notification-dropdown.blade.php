@@ -212,11 +212,15 @@
         @if(App\Models\SystemSetting::get('notifications.push_enabled', false) && App\Models\SystemSetting::get('notifications.vapid_public_key'))
         <div x-data="{ showPrompt: false, subscribed: false }"
              x-init="
-                if ('Notification' in window && 'serviceWorker' in navigator) {
-                    navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => {
-                        showPrompt = !sub && Notification.permission !== 'denied';
-                        subscribed = !!sub;
-                    }).catch(() => {});
+                if (!('Notification' in window) || !('serviceWorker' in navigator)) { showPrompt = false; }
+                else if (Notification.permission === 'denied') { showPrompt = false; }
+                else {
+                    const done = (sub) => { showPrompt = !sub; subscribed = !!sub; };
+                    navigator.serviceWorker.ready
+                        .then(reg => reg.pushManager.getSubscription())
+                        .then(done)
+                        .catch(() => done(null));
+                    setTimeout(() => { if (!subscribed && Notification.permission !== 'denied') showPrompt = true; }, 2500);
                 }
              "
              x-show="showPrompt"

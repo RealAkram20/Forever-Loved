@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Memorial;
 use App\Models\SubscriptionPlan;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserSubscription;
 use App\Services\NotificationService;
@@ -150,10 +151,12 @@ class MemorialSignupController extends Controller
             return redirect()->route('memorial.create.step1');
         }
         $plans = SubscriptionPlan::where('is_active', true)->orderBy('sort_order')->get();
+        $currency = SystemSetting::get('payments.currency', 'USD');
         return view('pages.memorial-signup.step3', [
             'title' => 'Create Memorial - Choose Plan',
             'data' => $data,
             'plans' => $plans,
+            'currency' => $currency,
         ]);
     }
 
@@ -167,6 +170,88 @@ class MemorialSignupController extends Controller
         ]);
         session([self::SESSION_KEY => array_merge(session(self::SESSION_KEY, []), $validated)]);
         return redirect()->route('memorial.create.complete');
+    }
+
+    /**
+     * Prepare paid checkout: Create memorial and return JSON for checkout modal (used on Step 3).
+     */
+    public function preparePaidCheckout(Request $request)
+    {
+        if (!$request->user()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized'], 401);
+        }
+        $data = session(self::SESSION_KEY, []);
+        if (empty($data['first_name'])) {
+            return response()->json(['success' => false, 'error' => 'Please complete Step 1 first.'], 400);
+        }
+
+        $planId = (int) ($request->input('plan_id') ?? $data['plan_id'] ?? 0);
+        $plan = SubscriptionPlan::find($planId);
+        if (!$plan || $plan->isFree()) {
+            return response()->json(['success' => false, 'error' => 'Please select a paid plan.'], 400);
+        }
+
+        $fullName = trim(implode(' ', array_filter([
+            $data['first_name'],
+            $data['middle_name'] ?? '',
+            $data['last_name'],
+        ])));
+
+        $memorial = Memorial::create([
+            'user_id' => $request->user()->id,
+            'slug' => $this->generateSlug($fullName),
+            'title' => 'In Loving Memory of ' . $fullName,
+            'full_name' => $fullName,
+            'first_name' => $data['first_name'],
+            'middle_name' => $data['middle_name'] ?? null,
+            'last_name' => $data['last_name'],
+            'gender' => $data['gender'] ?? null,
+            'relationship' => $data['relationship'] ?? null,
+            'short_description' => $data['short_description'] ?? null,
+            'nationality' => $data['nationality'] ?? null,
+            'primary_profession' => $data['primary_profession'] ?? null,
+            'major_achievements' => $data['major_achievements'] ?? null,
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+            'date_of_passing' => $data['date_of_passing'] ?? null,
+            'birth_city' => $data['birth_city'] ?? null,
+            'birth_state' => $data['birth_state'] ?? null,
+            'birth_country' => $data['birth_country'] ?? null,
+            'death_city' => $data['death_city'] ?? null,
+            'death_state' => $data['death_state'] ?? null,
+            'death_country' => $data['death_country'] ?? null,
+            'cause_of_death' => $data['cause_of_death'] ?? null,
+            'designation' => (!empty($data['cause_of_death']) && $data['cause_of_death'] !== 'No designation') ? $data['cause_of_death'] : null,
+            'cause_of_death_private' => $data['cause_of_death_private'] ?? false,
+            'biography' => null,
+            'theme' => 'free',
+            'plan' => 'free',
+            'completion_status' => 'pending',
+            'is_public' => true,
+        ]);
+
+        try {
+            $bioService = app(TemplateBioGeneratorService::class);
+            $biography = $bioService->generateStructured($memorial);
+            if ($biography && trim($biography) !== '') {
+                $memorial->update(['biography' => $biography]);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        session()->forget(self::SESSION_KEY);
+
+        return response()->json([
+            'success' => true,
+            'memorial_slug' => $memorial->slug,
+            'plan_id' => $plan->id,
+            'plan' => [
+                'id' => $plan->id,
+                'name' => $plan->name,
+                'price' => (float) $plan->price,
+                'interval' => $plan->interval,
+            ],
+        ]);
     }
 
     /**
@@ -236,14 +321,20 @@ class MemorialSignupController extends Controller
         session()->forget(self::SESSION_KEY);
 
         if ($isFreePlan && $plan) {
-            UserSubscription::create([
+            $subscription = UserSubscription::create([
                 'user_id' => $request->user()->id,
+                'memorial_id' => $memorial->id,
                 'subscription_plan_id' => $plan->id,
                 'starts_at' => now(),
                 'ends_at' => null,
                 'status' => 'active',
                 'payment_gateway' => null,
                 'payment_reference' => null,
+            ]);
+            $memorial->update([
+                'plan' => 'free',
+                'subscription_plan_id' => $plan->id,
+                'user_subscription_id' => $subscription->id,
             ]);
             return redirect()->route('memorial.create.preparing', ['slug' => $memorial->slug]);
         }

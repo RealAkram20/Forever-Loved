@@ -50,9 +50,9 @@ class SystemSetting extends Model
         'smtp.from_address' => ['value' => '', 'type' => 'string', 'group' => 'smtp'],
         'smtp.from_name' => ['value' => '', 'type' => 'string', 'group' => 'smtp'],
 
-        // Notifications
-        'notifications.email_enabled' => ['value' => '0', 'type' => 'boolean', 'group' => 'notifications'],
-        'notifications.push_enabled' => ['value' => '0', 'type' => 'boolean', 'group' => 'notifications'],
+        // Notifications (enabled by default)
+        'notifications.email_enabled' => ['value' => '1', 'type' => 'boolean', 'group' => 'notifications'],
+        'notifications.push_enabled' => ['value' => '1', 'type' => 'boolean', 'group' => 'notifications'],
         'notifications.vapid_public_key' => ['value' => '', 'type' => 'string', 'group' => 'notifications'],
         'notifications.vapid_private_key' => ['value' => '', 'type' => 'encrypted', 'group' => 'notifications'],
     ];

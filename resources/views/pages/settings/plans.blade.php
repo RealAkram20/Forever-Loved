@@ -37,7 +37,7 @@
                                 </div>
 
                                 <div class="mb-4">
-                                    <span class="text-2xl font-bold text-gray-800 dark:text-white/90">${{ number_format($plan->price, 2) }}</span>
+                                    <span class="text-2xl font-bold text-gray-800 dark:text-white/90">{{ $currency ?? 'USD' }} {{ number_format($plan->price, 2) }}</span>
                                     <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ $plan->interval }}</span>
                                 </div>
 

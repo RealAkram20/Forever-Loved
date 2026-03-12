@@ -1,7 +1,7 @@
 @extends('layouts.fullscreen-layout')
 
 @section('content')
-<div class="relative z-1 bg-white p-6 sm:p-0" x-data="step2Form()">
+<div class="relative z-1 bg-white p-6 sm:p-0" x-data="step2Form({{ json_encode(['name' => old('name', ''), 'email' => old('email', '')]) }})">
     <div class="relative flex min-h-screen w-full flex-col justify-center py-12 sm:p-0">
         <div class="flex w-full flex-1 flex-col">
             <div class="mx-auto w-full max-w-2xl px-6 pt-10 lg:px-12">
@@ -30,16 +30,16 @@
 
                     {{-- Register form (signup) - shown by default when showLogin is false --}}
                     <div x-show="!showLogin">
-                        <form method="POST" action="{{ route('memorial.create.storeStep2Register') }}" class="space-y-5">
+                        <form id="step2-register-form" method="POST" action="{{ route('memorial.create.storeStep2Register') }}" class="space-y-5" @input="saveStep2ToStorage()" @change="saveStep2ToStorage()">
                         @csrf
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-gray-700" for="name">Full name</label>
-                            <input type="text" id="name" name="name" value="{{ old('name') }}" required
+                            <input type="text" id="name" name="name" x-model="nameValue" required
                                 class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden" />
                         </div>
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-gray-700" for="reg_email">Email</label>
-                            <input type="email" id="reg_email" name="email" value="{{ old('email') }}" required
+                            <input type="email" id="reg_email" name="email" x-model="emailValue" required
                                 class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden"
                                 @blur="checkEmail($event.target.value)" />
                         </div>
@@ -60,7 +60,7 @@
                     </div>
 
                     {{-- Login form --}}
-                    <form x-show="showLogin" method="POST" action="{{ route('memorial.create.storeStep2Login') }}" class="space-y-5" x-cloak style="display: none;">
+                    <form id="step2-login-form" x-show="showLogin" method="POST" action="{{ route('memorial.create.storeStep2Login') }}" class="space-y-5" x-cloak style="display: none;" @input="saveStep2ToStorage()" @change="saveStep2ToStorage()">
                         @csrf
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-gray-700" for="login_email">Email</label>
@@ -93,11 +93,46 @@
 
 @push('scripts')
 <script>
-function step2Form() {
+const STEP2_STORAGE_KEY = 'memorial_signup_step2';
+
+function step2Form(serverData) {
+    const sd = serverData || {};
+    const saved = (() => {
+        try {
+            const s = localStorage.getItem(STEP2_STORAGE_KEY);
+            return s ? JSON.parse(s) : null;
+        } catch (e) { return null; }
+    })();
+    const nameVal = sd.name || (saved && saved.name) || '';
+    const emailVal = sd.email || (saved && saved.email) || '';
+
     return {
-        showLogin: false,
+        showLogin: saved?.showLogin || false,
         emailExists: false,
-        emailValue: '{{ old("email") }}',
+        nameValue: nameVal,
+        emailValue: emailVal,
+
+        init() {
+            try { localStorage.removeItem('memorial_signup_step1'); } catch (e) {}
+            const form = document.getElementById('step2-register-form') || document.getElementById('step2-login-form');
+            if (form) {
+                form.addEventListener('submit', () => {
+                    try { localStorage.removeItem(STEP2_STORAGE_KEY); } catch (e) {}
+                });
+            }
+        },
+
+        saveStep2ToStorage() {
+            const obj = {
+                name: document.getElementById('name')?.value || this.nameValue,
+                email: document.getElementById('reg_email')?.value || document.getElementById('login_email')?.value || this.emailValue,
+                showLogin: this.showLogin
+            };
+            try {
+                localStorage.setItem(STEP2_STORAGE_KEY, JSON.stringify(obj));
+            } catch (e) {}
+        },
+
         checkEmail(email) {
             if (!email) return;
             fetch('{{ route("memorial.create.checkEmail") }}', {
@@ -115,12 +150,14 @@ function step2Form() {
                 if (data.exists) {
                     this.emailValue = email;
                 }
+                this.saveStep2ToStorage();
             });
         },
         showLoginForm() {
             this.emailValue = document.getElementById('reg_email')?.value || this.emailValue;
             this.showLogin = true;
             this.emailExists = false;
+            this.saveStep2ToStorage();
         }
     };
 }

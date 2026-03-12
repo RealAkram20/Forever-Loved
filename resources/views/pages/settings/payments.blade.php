@@ -24,6 +24,14 @@
         @csrf
         @method('PUT')
 
+        <div class="mb-4 flex justify-end">
+            <a href="{{ route('settings.payment-orders') }}"
+                class="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                View Payment Orders
+            </a>
+        </div>
+
         {{-- Global Payment Settings --}}
         <x-common.component-card title="Payment Settings" desc="Enable payments and set the default currency.">
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

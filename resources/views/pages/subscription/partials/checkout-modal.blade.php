@@ -30,78 +30,25 @@
             </button>
         </div>
 
-        {{-- Step 1: Payment Method Selection --}}
-        <div x-show="step === 'method'" class="p-6 space-y-5">
-            <div class="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-4">
-                <p class="text-sm font-medium text-gray-800 dark:text-white/90" x-text="planName"></p>
-                <p class="mt-1 text-lg font-bold text-brand-500" x-text="'$' + (planPrice?.toFixed(2) || '0') + ' / ' + (planInterval || '')"></p>
-            </div>
-
-            <div>
-                <p class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Choose payment method</p>
-                <div class="space-y-2">
-                    <button type="button"
-                        @click="selectMethod('mtn')"
-                        :class="paymentMethod === 'mtn' ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'"
-                        class="flex w-full items-center gap-3 rounded-xl border-2 p-4 text-left transition">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
-                            <span class="text-lg font-bold text-yellow-600 dark:text-yellow-400">M</span>
-                        </div>
-                        <div>
-                            <p class="font-medium text-gray-800 dark:text-white/90">MTN Mobile Money</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Pay with your MTN number</p>
-                        </div>
-                        <svg x-show="paymentMethod === 'mtn'" class="ml-auto h-5 w-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                    </button>
-
-                    <button type="button"
-                        @click="selectMethod('airtel')"
-                        :class="paymentMethod === 'airtel' ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'"
-                        class="flex w-full items-center gap-3 rounded-xl border-2 p-4 text-left transition">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
-                            <span class="text-lg font-bold text-red-600 dark:text-red-400">A</span>
-                        </div>
-                        <div>
-                            <p class="font-medium text-gray-800 dark:text-white/90">Airtel Money</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Pay with your Airtel number</p>
-                        </div>
-                        <svg x-show="paymentMethod === 'airtel'" class="ml-auto h-5 w-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                    </button>
-
-                    <button type="button"
-                        @click="selectMethod('card')"
-                        :class="paymentMethod === 'card' ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'"
-                        class="flex w-full items-center gap-3 rounded-xl border-2 p-4 text-left transition">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                            <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                        </div>
-                        <div>
-                            <p class="font-medium text-gray-800 dark:text-white/90">Card Payment</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Visa, Mastercard</p>
-                        </div>
-                        <svg x-show="paymentMethod === 'card'" class="ml-auto h-5 w-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                    </button>
-                </div>
-            </div>
-
-            <p class="text-xs text-gray-500 dark:text-gray-400">You will be redirected to complete payment securely. No billing address required for mobile money.</p>
-
-            <div x-show="error" class="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400" x-text="error"></div>
-
-            <button type="button"
-                @click="proceedToPay()"
-                :disabled="!paymentMethod || loading"
+        {{-- Memorial selection (when not from signup) --}}
+        <div x-show="needsMemorialSelection" class="p-6 space-y-4">
+            <p class="text-sm text-gray-600 dark:text-gray-400">Select which memorial to upgrade with this plan:</p>
+            <select x-model="selectedMemorialId" class="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 text-sm text-gray-800 dark:text-white/90 focus:border-brand-300 focus:outline-hidden">
+                <option value="">Choose a memorial...</option>
+                @foreach ($memorials ?? [] as $m)
+                    <option value="{{ $m->id }}">{{ $m->full_name }}</option>
+                @endforeach
+            </select>
+            <p x-show="memorials.length === 0" class="text-sm text-amber-600 dark:text-amber-400">You need to create a memorial first. <a href="{{ route('memorials.create') }}" class="underline">Create memorial</a></p>
+            <button type="button" @click="confirmMemorialAndPay()" :disabled="!selectedMemorialId"
                 class="w-full rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition">
-                <span x-show="!loading">Continue to Payment</span>
-                <span x-show="loading" class="inline-flex items-center gap-2">
-                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Processing...
-                </span>
+                Continue to Payment
             </button>
         </div>
 
-        {{-- Step 2: Pesapal iframe --}}
-        <div x-show="step === 'processing'" class="p-6">
+        {{-- Pesapal iframe (shown when memorial selected or from signup) --}}
+        <div class="p-6 space-y-4" x-show="!needsMemorialSelection">
+            <div x-show="error" class="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400" x-text="error"></div>
             <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800/50" style="min-height: 450px;">
                 <iframe id="pesapal-checkout-iframe" class="hidden w-full border-0" style="height: 500px;" title="Pesapal Payment"></iframe>
                 <div id="pesapal-loading-placeholder" class="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">

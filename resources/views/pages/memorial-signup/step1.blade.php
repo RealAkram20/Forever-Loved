@@ -1,7 +1,7 @@
 @extends('layouts.fullscreen-layout')
 
 @section('content')
-<div class="relative z-1 bg-white p-6 sm:p-0" x-data="{ doProfileLater: false, doDatesLater: false }">
+<div class="relative z-1 bg-white p-6 sm:p-0" x-data="step1Persist({{ json_encode($data) }})">
     <div class="relative flex min-h-screen w-full flex-col justify-center py-12 sm:p-0">
         <div class="flex w-full flex-1 flex-col">
             <div class="mx-auto w-full max-w-2xl px-6 pt-10 lg:px-12">
@@ -27,7 +27,7 @@
                         <div class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-600">{{ $errors->first() }}</div>
                     @endif
 
-                    <form method="POST" action="{{ route('memorial.create.storeStep1') }}" class="space-y-6">
+                    <form id="step1-form" method="POST" action="{{ route('memorial.create.storeStep1') }}" class="space-y-6" @input="saveToStorage()" @change="saveToStorage()">
                         @csrf
                         <div class="space-y-5">
                             <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -97,7 +97,7 @@
                                 <p class="text-sm text-gray-600">Dates, location & designation:</p>
                                 <label class="flex cursor-pointer items-center gap-3 text-sm font-medium text-gray-700 select-none">
                                     <div class="relative">
-                                        <input type="checkbox" class="sr-only" x-model="doDatesLater" />
+                                        <input type="checkbox" class="sr-only" x-model="doDatesLater" @change="saveToStorage()" />
                                         <div class="block h-6 w-11 rounded-full" :class="doDatesLater ? 'bg-brand-500' : 'bg-gray-200'"></div>
                                         <div :class="doDatesLater ? 'translate-x-full' : 'translate-x-0'" class="shadow-theme-sm absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white duration-300 ease-linear"></div>
                                     </div>
@@ -176,7 +176,7 @@
                                 <p class="text-sm text-gray-600">Help us generate a richer memorial profile:</p>
                                 <label class="flex cursor-pointer items-center gap-3 text-sm font-medium text-gray-700 select-none">
                                     <div class="relative">
-                                        <input type="checkbox" class="sr-only" x-model="doProfileLater" />
+                                        <input type="checkbox" class="sr-only" x-model="doProfileLater" @change="saveToStorage()" />
                                         <div class="block h-6 w-11 rounded-full" :class="doProfileLater ? 'bg-brand-500' : 'bg-gray-200'"></div>
                                         <div :class="doProfileLater ? 'translate-x-full' : 'translate-x-0'" class="shadow-theme-sm absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white duration-300 ease-linear"></div>
                                     </div>
@@ -221,4 +221,83 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+const STEP1_STORAGE_KEY = 'memorial_signup_step1';
+
+function step1Persist(serverData) {
+    return {
+        serverData: serverData || {},
+        doProfileLater: false,
+        doDatesLater: false,
+        saveTimeout: null,
+
+        init() {
+            const saved = this.getSaved();
+            const hasServerData = this.serverData && this.serverData.first_name;
+            if (saved && !hasServerData) {
+                this.restoreForm(saved);
+            }
+            if (saved && (saved.doDatesLater !== undefined)) this.doDatesLater = !!saved.doDatesLater;
+            if (saved && (saved.doProfileLater !== undefined)) this.doProfileLater = !!saved.doProfileLater;
+
+            const form = document.getElementById('step1-form');
+            if (form) {
+                form.addEventListener('submit', () => {
+                    try { localStorage.removeItem(STEP1_STORAGE_KEY); } catch (e) {}
+                });
+            }
+        },
+
+        getSaved() {
+            try {
+                const s = localStorage.getItem(STEP1_STORAGE_KEY);
+                return s ? JSON.parse(s) : null;
+            } catch (e) { return null; }
+        },
+
+        saveToStorage() {
+            clearTimeout(this.saveTimeout);
+            this.saveTimeout = setTimeout(() => {
+                const form = document.getElementById('step1-form');
+                if (!form) return;
+                const fd = new FormData(form);
+                const obj = { doDatesLater: this.doDatesLater, doProfileLater: this.doProfileLater };
+                for (const [k, v] of fd) {
+                    if (v instanceof File) continue;
+                    obj[k] = v;
+                }
+                for (const el of form.querySelectorAll('input[type="checkbox"]:not(:checked)')) {
+                    if (el.name && !(el.name in obj)) obj[el.name] = '';
+                }
+                try {
+                    localStorage.setItem(STEP1_STORAGE_KEY, JSON.stringify(obj));
+                } catch (e) {}
+            }, 300);
+        },
+
+        restoreForm(saved) {
+            const form = document.getElementById('step1-form');
+            if (!form) return;
+            for (const [name, value] of Object.entries(saved)) {
+                if (name === 'doDatesLater' || name === 'doProfileLater') continue;
+                const el = form.querySelector(`[name="${name}"]`);
+                if (!el) continue;
+                if (el.type === 'checkbox') {
+                    el.checked = value === '1' || value === 'on' || value === true || value === 'true';
+                } else if (el.type === 'radio') {
+                    el.checked = (el.value === value);
+                } else {
+                    el.value = value || '';
+                }
+            }
+            this.doDatesLater = !!saved.doDatesLater;
+            this.doProfileLater = !!saved.doProfileLater;
+            form.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    };
+}
+</script>
+@endpush
 @endsection

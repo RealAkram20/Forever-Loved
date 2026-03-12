@@ -38,6 +38,7 @@ Route::prefix('create-memorial')->name('memorial.create.')->group(function () {
     Route::post('/check-email', [MemorialSignupController::class, 'checkEmail'])->name('checkEmail');
     Route::get('/step-3', [MemorialSignupController::class, 'step3'])->name('step3');
     Route::post('/step-3', [MemorialSignupController::class, 'storeStep3'])->name('storeStep3');
+    Route::post('/prepare-paid-checkout', [MemorialSignupController::class, 'preparePaidCheckout'])->name('preparePaidCheckout');
     Route::get('/complete', [MemorialSignupController::class, 'complete'])->name('complete');
     Route::get('/preparing/{slug}', [MemorialSignupController::class, 'preparing'])->name('preparing');
 });
@@ -62,6 +63,7 @@ Route::post('/notifications/mark-all-read', [NotificationController::class, 'mar
 Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 Route::post('/notifications/push/subscribe', [NotificationController::class, 'subscribePush'])->name('notifications.push.subscribe');
 Route::post('/notifications/push/unsubscribe', [NotificationController::class, 'unsubscribePush'])->name('notifications.push.unsubscribe');
+Route::post('/notifications/push/reset', [NotificationController::class, 'resetPush'])->name('notifications.push.reset');
 Route::post('/notifications/push/test', [NotificationController::class, 'testPush'])->name('notifications.push.test');
 
 // Subscription & Billing (user)
@@ -91,6 +93,12 @@ Route::middleware('role:admin|super-admin')->group(function () {
     Route::resource('users', UserController::class)->except(['show']);
 });
 
+// Admin push onboarding dismiss
+Route::post('/admin/dismiss-push-onboarding', function (\Illuminate\Http\Request $request) {
+    $request->session()->put('admin_push_onboarding_dismissed', true);
+    return response()->json(['success' => true]);
+})->middleware(['auth', 'role:admin|super-admin'])->name('admin.dismiss-push-onboarding');
+
 // ─── Admin Settings ──────────────────────────────────────────────
 Route::prefix('settings')->name('settings.')->middleware('role:admin|super-admin')->group(function () {
     Route::get('/', [SettingsController::class, 'general'])->name('general');
@@ -107,6 +115,12 @@ Route::prefix('settings')->name('settings.')->middleware('role:admin|super-admin
     Route::get('/payments', [SettingsController::class, 'payments'])->name('payments');
     Route::put('/payments', [SettingsController::class, 'updatePayments'])->name('payments.update');
 
+    Route::get('/payment-orders', [SettingsController::class, 'paymentOrders'])->name('payment-orders');
+    Route::post('/payment-orders/bulk', [SettingsController::class, 'bulkPaymentOrders'])->name('payment-orders.bulk');
+    Route::post('/payment-orders', [SettingsController::class, 'storePaymentOrder'])->name('payment-orders.store');
+    Route::put('/payment-orders/{order}', [SettingsController::class, 'updatePaymentOrder'])->name('payment-orders.update');
+    Route::delete('/payment-orders/{order}', [SettingsController::class, 'destroyPaymentOrder'])->name('payment-orders.destroy');
+
     Route::get('/smtp', [SettingsController::class, 'smtp'])->name('smtp');
     Route::put('/smtp', [SettingsController::class, 'updateSmtp'])->name('smtp.update');
 
@@ -114,6 +128,7 @@ Route::prefix('settings')->name('settings.')->middleware('role:admin|super-admin
     Route::put('/notifications', [SettingsController::class, 'updateNotifications'])->name('notifications.update');
 
     Route::get('/subscriptions', [SettingsController::class, 'subscriptions'])->name('subscriptions');
+    Route::post('/subscriptions', [SettingsController::class, 'storeSubscription'])->name('subscriptions.store');
     Route::put('/subscriptions/{subscription}', [SettingsController::class, 'updateSubscription'])->name('subscriptions.update');
 
     Route::get('/plans', [SettingsController::class, 'plans'])->name('plans');

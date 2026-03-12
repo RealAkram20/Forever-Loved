@@ -32,7 +32,6 @@ class MenuHelper
         return [
             ['icon' => 'dashboard', 'name' => 'Dashboard', 'path' => '/dashboard'],
             ['icon' => 'memorial', 'name' => 'Memorials', 'path' => '/memorials'],
-            ['icon' => 'subscription', 'name' => 'My Subscription', 'path' => '/subscription'],
             ['icon' => 'search', 'name' => 'Find Memorial', 'path' => '/find-memorial'],
             ['icon' => 'notification', 'name' => 'Notifications', 'path' => '/notifications'],
             ['icon' => 'calendar', 'name' => 'Calendar', 'path' => '/calendar'],
@@ -53,6 +52,7 @@ class MenuHelper
                     ['name' => 'AI Configuration', 'path' => '/settings/ai'],
                     ['name' => 'Permissions', 'path' => '/settings/permissions'],
                     ['name' => 'Payments', 'path' => '/settings/payments'],
+                    ['name' => 'Payment Orders', 'path' => '/settings/payment-orders'],
                     ['name' => 'Subscriptions', 'path' => '/settings/subscriptions'],
                     ['name' => 'Plans', 'path' => '/settings/plans'],
                     ['name' => 'SMTP / Email', 'path' => '/settings/smtp'],

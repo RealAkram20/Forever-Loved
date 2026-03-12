@@ -52,6 +52,8 @@ class Memorial extends Model
         'biography',
         'theme',
         'plan',
+        'subscription_plan_id',
+        'user_subscription_id',
         'completion_status',
         'background_music',
         'profile_photo_path',
@@ -98,6 +100,16 @@ class Memorial extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function subscriptionPlan(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
+    }
+
+    public function userSubscription(): BelongsTo
+    {
+        return $this->belongsTo(UserSubscription::class, 'user_subscription_id');
     }
 
     /**

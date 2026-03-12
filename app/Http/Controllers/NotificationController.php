@@ -127,7 +127,7 @@ class NotificationController extends Controller
         if ($subscriptions->isEmpty()) {
             return response()->json([
                 'success' => false,
-                'message' => 'No push subscriptions. Click "Enable Push Notifications" in the bell dropdown first.',
+                'message' => 'Enable push in this browser first—allow when the popup appears, or click Enable in the bell dropdown.',
             ], 400);
         }
 
@@ -180,6 +180,18 @@ class NotificationController extends Controller
         $request->user()->pushSubscriptions()
             ->where('endpoint', $validated['endpoint'])
             ->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Reset all push subscriptions for the current user.
+     * Use when subscription was created with old VAPID keys (e.g. after DB reset).
+     */
+    public function resetPush(Request $request): JsonResponse
+    {
+        $request->user()->pushSubscriptions()->delete();
+        $request->session()->forget('admin_push_onboarding_dismissed');
 
         return response()->json(['success' => true]);
     }

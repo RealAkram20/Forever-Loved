@@ -23,6 +23,15 @@ class User extends Authenticatable
         'email',
         'password',
         'profile_photo',
+        'push_notifications_enabled',
+        'email_notifications_enabled',
+        'in_app_notifications_enabled',
+    ];
+
+    protected $attributes = [
+        'push_notifications_enabled' => true,
+        'email_notifications_enabled' => true,
+        'in_app_notifications_enabled' => true,
     ];
 
     /**
@@ -45,6 +54,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'push_notifications_enabled' => 'boolean',
+            'email_notifications_enabled' => 'boolean',
+            'in_app_notifications_enabled' => 'boolean',
         ];
     }
 

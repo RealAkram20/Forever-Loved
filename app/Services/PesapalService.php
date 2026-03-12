@@ -35,6 +35,32 @@ class PesapalService
     }
 
     /**
+     * Get URL for Pesapal callback/cancellation. Uses PESAPAL_CALLBACK_BASE_URL when set,
+     * otherwise uses APP_URL (e.g. your Hostinger domain).
+     */
+    public function getCallbackUrl(string $routeName, array $params = []): string
+    {
+        $base = config('services.pesapal.callback_base_url');
+        if (empty($base)) {
+            return route($routeName, $params);
+        }
+        $path = route($routeName, $params, false);
+        return rtrim($base, '/') . $path;
+    }
+
+    /**
+     * Base HTTP client with optional SSL verification (for local dev on Windows/XAMPP).
+     */
+    private function http(): \Illuminate\Http\Client\PendingRequest
+    {
+        $client = Http::acceptJson()->contentType('application/json');
+        if (! config('services.pesapal.verify_ssl', true)) {
+            $client = $client->withOptions(['verify' => false]);
+        }
+        return $client;
+    }
+
+    /**
      * Get a valid Bearer token. Caches token until near expiry.
      */
     public function getToken(): ?string
@@ -43,8 +69,7 @@ class PesapalService
             return $this->token;
         }
 
-        $response = Http::acceptJson()
-            ->contentType('application/json')
+        $response = $this->http()
             ->post("{$this->baseUrl}/api/Auth/RequestToken", [
                 'consumer_key' => $this->consumerKey,
                 'consumer_secret' => $this->consumerSecret,
@@ -76,8 +101,7 @@ class PesapalService
             return null;
         }
 
-        $response = Http::acceptJson()
-            ->contentType('application/json')
+        $response = $this->http()
             ->withToken($token)
             ->post("{$this->baseUrl}/api/URLSetup/RegisterIPN", [
                 'url' => $url,
@@ -146,23 +170,28 @@ class PesapalService
             $payload['cancellation_url'] = $cancellationUrl;
         }
 
-        $response = Http::acceptJson()
-            ->contentType('application/json')
+        $response = $this->http()
             ->withToken($token)
+            ->timeout(30)
             ->post("{$this->baseUrl}/api/Transactions/SubmitOrderRequest", $payload);
 
         $data = $response->json();
 
         if (! $response->successful()) {
-            Log::error('Pesapal submit order failed', ['response' => $data]);
-            return [
-                'success' => false,
-                'error' => $data['error']['message'] ?? $data['message'] ?? 'Request failed',
-            ];
+            $errorMsg = 'Request failed';
+            if (is_array($data)) {
+                $errorMsg = $data['error']['message'] ?? $data['error']['description'] ?? $data['message'] ?? $data['error'] ?? $errorMsg;
+                if (is_array($errorMsg)) {
+                    $errorMsg = $errorMsg['message'] ?? json_encode($errorMsg);
+                }
+            }
+            Log::error('Pesapal submit order failed', ['status' => $response->status(), 'response' => $data]);
+            return ['success' => false, 'error' => (string) $errorMsg];
         }
 
         if (empty($data['redirect_url'])) {
-            return ['success' => false, 'error' => 'No redirect URL received'];
+            Log::error('Pesapal no redirect_url', ['response' => $data]);
+            return ['success' => false, 'error' => 'No redirect URL received from payment gateway'];
         }
 
         return [
@@ -183,8 +212,7 @@ class PesapalService
             return null;
         }
 
-        $response = Http::acceptJson()
-            ->contentType('application/json')
+        $response = $this->http()
             ->withToken($token)
             ->get("{$this->baseUrl}/api/Transactions/GetTransactionStatus", [
                 'orderTrackingId' => $orderTrackingId,
@@ -201,17 +229,30 @@ class PesapalService
 
     /**
      * Check if payment status is completed.
+     * Pesapal returns: COMPLETED, Completed, or status_code 1.
      */
     public function isPaymentCompleted(?array $status): bool
     {
-        return $status && ($status['payment_status_description'] ?? '') === 'Completed';
+        if (! $status) {
+            return false;
+        }
+        $desc = strtoupper(trim($status['payment_status_description'] ?? ''));
+        $code = $status['status_code'] ?? null;
+        return $desc === 'COMPLETED' || $code === 1 || $code === '1';
     }
 
     /**
      * Check if payment status is failed.
+     * Pesapal returns: FAILED, INVALID, REVERSED or status_code 0, 2, 3.
      */
     public function isPaymentFailed(?array $status): bool
     {
-        return $status && in_array($status['payment_status_description'] ?? '', ['Failed', 'Invalid', 'Reversed']);
+        if (! $status) {
+            return false;
+        }
+        $desc = strtoupper(trim($status['payment_status_description'] ?? ''));
+        $code = $status['status_code'] ?? null;
+        return in_array($desc, ['FAILED', 'INVALID', 'REVERSED'])
+            || in_array($code, [0, 2, 3, '0', '2', '3']);
     }
 }

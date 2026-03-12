@@ -12,6 +12,7 @@ class UserSubscription extends Model
 
     protected $fillable = [
         'user_id',
+        'memorial_id',
         'subscription_plan_id',
         'starts_at',
         'ends_at',
@@ -31,6 +32,11 @@ class UserSubscription extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function memorial(): BelongsTo
+    {
+        return $this->belongsTo(Memorial::class);
     }
 
     public function plan(): BelongsTo

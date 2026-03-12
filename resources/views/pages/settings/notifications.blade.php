@@ -65,6 +65,7 @@
         </x-common.component-card>
 
         {{-- Push Notifications --}}
+        <div id="push-notifications-section">
         <x-common.component-card title="Push Notifications" desc="Send browser push notifications to users. Uses the free Web Push API (VAPID) — no paid services required.">
             <div class="space-y-6">
                 <div class="flex items-center justify-between"
@@ -86,35 +87,66 @@
                 </div>
 
                 {{-- Test Push Button --}}
-                <div x-data="{ testing: false, result: null }"
+                <div x-data="{ testing: false, result: null, resetting: false }"
                     class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
                     <p class="text-sm font-medium text-gray-800 dark:text-white/90 mb-2">Test Push Notification</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Send a test push to your browser to verify the setup.</p>
-                    <button type="button"
-                        @click="
-                            testing = true;
-                            result = null;
-                            fetch('{{ route('notifications.push.test') }}', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content,
-                                    'Accept': 'application/json',
-                                },
-                            })
-                            .then(r => r.json())
-                            .then(data => { result = data; testing = false; })
-                            .catch(e => { result = { success: false, message: e.message }; testing = false; });
-                        "
-                        :disabled="testing"
-                        class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 transition">
-                        <span x-show="testing">Sending...</span>
-                        <span x-show="!testing">Send Test Push</span>
-                    </button>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Send a test push to your browser. Enable push when the popup appears, or via the bell dropdown.</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button"
+                            @click="
+                                testing = true;
+                                result = null;
+                                fetch('{{ route('notifications.push.test') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content,
+                                        'Accept': 'application/json',
+                                    },
+                                })
+                                .then(r => r.json())
+                                .then(data => { result = data; testing = false; })
+                                .catch(e => { result = { success: false, message: e.message }; testing = false; });
+                            "
+                            :disabled="testing"
+                            class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 transition">
+                            <span x-show="testing">Sending...</span>
+                            <span x-show="!testing">Send Test Push</span>
+                        </button>
+                        <button type="button"
+                            @click="
+                                resetting = true;
+                                (async () => {
+                                    try {
+                                        const reg = await navigator.serviceWorker.ready;
+                                        const sub = await reg.pushManager.getSubscription();
+                                        if (sub) await sub.unsubscribe();
+                                    } catch (e) {}
+                                    await fetch('{{ route('notifications.push.reset') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content,
+                                            'Accept': 'application/json',
+                                        },
+                                    });
+                                    resetting = false;
+                                    result = { success: true, message: 'Reset complete. Refresh the page and allow notifications when the popup appears.' };
+                                })();
+                            "
+                            :disabled="resetting"
+                            class="inline-flex items-center gap-2 rounded-lg border border-amber-300 dark:border-amber-700 px-4 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50 transition">
+                            <span x-show="resetting">Resetting...</span>
+                            <span x-show="!resetting">Reset & Re-subscribe</span>
+                        </button>
+                    </div>
                     <div x-show="result" x-cloak class="mt-3 text-sm"
                         :class="result?.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                         <span x-text="result?.message"></span>
                     </div>
+                    <p class="mt-2 text-xs text-amber-600 dark:text-amber-400" x-show="result && !result?.success && ((result?.message || '').includes('VAPID') || (result?.message || '').includes('403'))" x-cloak>
+                        Your subscription was created with different VAPID keys. Click <strong>Reset & Re-subscribe</strong> above, then refresh the page.
+                    </p>
                 </div>
 
                 <div class="grid grid-cols-1 gap-6">
@@ -153,6 +185,7 @@
                 </div>
             </div>
         </x-common.component-card>
+        </div>
 
         {{-- Notification Types Info --}}
         <x-common.component-card title="Notification Events" desc="These events trigger notifications in the system.">

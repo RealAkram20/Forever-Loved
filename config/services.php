@@ -56,4 +56,9 @@ return [
         'cache_ttl' => env('ANTHROPIC_CACHE_TTL', 86400),
     ],
 
+    'pesapal' => [
+        'verify_ssl' => env('PESAPAL_VERIFY_SSL', true),
+        'callback_base_url' => env('PESAPAL_CALLBACK_BASE_URL'),
+    ],
+
 ];

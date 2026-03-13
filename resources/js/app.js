@@ -1,5 +1,6 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
+import collapse from '@alpinejs/collapse';
 import ApexCharts from 'apexcharts';
 
 // flatpickr
@@ -10,6 +11,7 @@ import { Calendar } from '@fullcalendar/core';
 
 
 
+Alpine.plugin(collapse);
 window.Alpine = Alpine;
 window.ApexCharts = ApexCharts;
 window.flatpickr = flatpickr;

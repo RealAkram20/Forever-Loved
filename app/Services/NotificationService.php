@@ -259,7 +259,7 @@ class NotificationService
             return;
         }
 
-        $appUrl = config('app.url', 'http://localhost');
+        $appUrl = config('app.url', 'http://localhost/Forever-love');
         $actionUrl = $notification->action_url;
         if ($actionUrl && !str_starts_with($actionUrl, 'http')) {
             $actionUrl = rtrim($appUrl, '/') . '/' . ltrim($actionUrl, '/');

@@ -246,6 +246,20 @@ function step1Persist(serverData) {
             if (form) {
                 form.addEventListener('submit', () => {
                     try { localStorage.removeItem(STEP1_STORAGE_KEY); } catch (e) {}
+                    if (this.doDatesLater) {
+                        const dateFields = ['date_of_birth', 'date_of_passing', 'birth_city', 'birth_state', 'birth_country', 'death_city', 'death_state', 'death_country', 'cause_of_death', 'cause_of_death_private'];
+                        dateFields.forEach(name => {
+                            const el = form.querySelector(`[name="${name}"]`);
+                            if (el) { el.disabled = true; }
+                        });
+                    }
+                    if (this.doProfileLater) {
+                        const profileFields = ['short_description', 'nationality', 'primary_profession', 'major_achievements'];
+                        profileFields.forEach(name => {
+                            const el = form.querySelector(`[name="${name}"]`);
+                            if (el) { el.disabled = true; }
+                        });
+                    }
                 });
             }
         },

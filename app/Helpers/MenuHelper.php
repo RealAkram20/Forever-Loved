@@ -15,12 +15,12 @@ class MenuHelper
     public static function getUserMainNavItems(): array
     {
         return [
-            ['icon' => 'dashboard', 'name' => 'Dashboard', 'path' => '/dashboard'],
-            ['icon' => 'memorial', 'name' => 'Memorials', 'path' => '/memorials'],
-            ['icon' => 'subscription', 'name' => 'My Subscription', 'path' => '/subscription'],
-            ['icon' => 'search', 'name' => 'Find Memorial', 'path' => '/find-memorial'],
-            ['icon' => 'notification', 'name' => 'Notifications', 'path' => '/notifications'],
-            ['icon' => 'calendar', 'name' => 'Calendar', 'path' => '/calendar'],
+            ['icon' => 'dashboard', 'name' => 'Dashboard', 'path' => url('/dashboard')],
+            ['icon' => 'memorial', 'name' => 'Memorials', 'path' => url('/memorials')],
+            ['icon' => 'subscription', 'name' => 'My Subscription', 'path' => url('/subscription')],
+            ['icon' => 'search', 'name' => 'Find Memorial', 'path' => url('/find-memorial')],
+            ['icon' => 'notification', 'name' => 'Notifications', 'path' => url('/notifications')],
+            ['icon' => 'calendar', 'name' => 'Calendar', 'path' => url('/calendar')],
         ];
     }
 
@@ -30,33 +30,34 @@ class MenuHelper
     public static function getAdminMainNavItems(): array
     {
         return [
-            ['icon' => 'dashboard', 'name' => 'Dashboard', 'path' => '/dashboard'],
-            ['icon' => 'memorial', 'name' => 'Memorials', 'path' => '/memorials'],
-            ['icon' => 'search', 'name' => 'Find Memorial', 'path' => '/find-memorial'],
-            ['icon' => 'notification', 'name' => 'Notifications', 'path' => '/notifications'],
-            ['icon' => 'calendar', 'name' => 'Calendar', 'path' => '/calendar'],
-            ['icon' => 'users', 'name' => 'Users', 'path' => '/users'],
+            ['icon' => 'dashboard', 'name' => 'Dashboard', 'path' => url('/dashboard')],
+            ['icon' => 'memorial', 'name' => 'Memorials', 'path' => url('/memorials')],
+            ['icon' => 'search', 'name' => 'Find Memorial', 'path' => url('/find-memorial')],
+            ['icon' => 'notification', 'name' => 'Notifications', 'path' => url('/notifications')],
+            ['icon' => 'calendar', 'name' => 'Calendar', 'path' => url('/calendar')],
+            ['icon' => 'users', 'name' => 'Users', 'path' => url('/users')],
             [
                 'name' => 'Pages',
                 'icon' => 'pages',
                 'subItems' => [
-                    ['name' => 'Landing Page', 'path' => '/'],
-                    ['name' => 'Blank Page', 'path' => '/blank'],
+                    ['name' => 'Landing Page', 'path' => url('/')],
+                    ['name' => 'Blank Page', 'path' => url('/blank')],
                 ],
             ],
             [
                 'name' => 'Settings',
                 'icon' => 'settings',
                 'subItems' => [
-                    ['name' => 'General', 'path' => '/settings'],
-                    ['name' => 'AI Configuration', 'path' => '/settings/ai'],
-                    ['name' => 'Permissions', 'path' => '/settings/permissions'],
-                    ['name' => 'Payments', 'path' => '/settings/payments'],
-                    ['name' => 'Payment Orders', 'path' => '/settings/payment-orders'],
-                    ['name' => 'Subscriptions', 'path' => '/settings/subscriptions'],
-                    ['name' => 'Plans', 'path' => '/settings/plans'],
-                    ['name' => 'SMTP / Email', 'path' => '/settings/smtp'],
-                    ['name' => 'Notifications', 'path' => '/settings/notifications'],
+                    ['name' => 'General', 'path' => url('/settings')],
+                    ['name' => 'AI Configuration', 'path' => url('/settings/ai')],
+                    ['name' => 'Permissions', 'path' => url('/settings/permissions')],
+                    ['name' => 'Payments', 'path' => url('/settings/payments')],
+                    ['name' => 'Payment Orders', 'path' => url('/settings/payment-orders')],
+                    ['name' => 'Subscriptions', 'path' => url('/settings/subscriptions')],
+                    ['name' => 'Plans', 'path' => url('/settings/plans')],
+                    ['name' => 'SMTP / Email', 'path' => url('/settings/smtp')],
+                    ['name' => 'Notifications', 'path' => url('/settings/notifications')],
+                    ['name' => 'System Updates', 'path' => url('/settings/updates')],
                 ],
             ],
         ];
@@ -76,7 +77,21 @@ class MenuHelper
 
     public static function isActive($path)
     {
-        return request()->is(ltrim($path, '/'));
+        $pathPart = parse_url($path, PHP_URL_PATH) ?: $path;
+        return request()->is(ltrim($pathPart, '/'));
+    }
+
+    /**
+     * Get path segment for JS matching (strips base path like /Forever-love).
+     */
+    public static function pathForMatch(string $path): string
+    {
+        $pathPart = parse_url($path, PHP_URL_PATH) ?: $path;
+        $base = parse_url(config('app.url'), PHP_URL_PATH);
+        if ($base && $base !== '/' && str_starts_with($pathPart, $base)) {
+            return ltrim(substr($pathPart, strlen($base)) ?: '/', '/');
+        }
+        return ltrim($pathPart, '/');
     }
 
     public static function getIconSvg($iconName)

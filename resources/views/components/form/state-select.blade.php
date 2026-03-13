@@ -135,7 +135,8 @@ document.addEventListener('alpine:init', () => {
         async fetchStates(code, resolveExisting) {
             this.loading = true;
             try {
-                const r = await fetch(`/api/location/states/${code}`);
+                const base = window.__appBaseUrl || '';
+                const r = await fetch(`${base}/api/location/states/${code}`);
                 const data = await r.json();
                 this.states = data.states || [];
                 this.dynamicLabel = data.type_label || 'State / Region';

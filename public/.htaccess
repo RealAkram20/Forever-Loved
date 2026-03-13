@@ -4,6 +4,8 @@
     </IfModule>
 
     RewriteEngine On
+    # Local dev (htdocs root): /  |  Subdirectory: /Forever-love/
+    RewriteBase /
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .

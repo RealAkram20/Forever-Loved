@@ -135,7 +135,7 @@
                         <p><strong>Order ID:</strong> #TAILADMIN-0014</p>
                         <p><strong>Transaction ID:</strong> TXN-1234567890</p>
                     </div>
-                    <a href="/orders" class="inline-block mt-3 text-sm font-medium text-green-600 underline hover:text-green-700">
+                    <a href="{{ url('/orders') }}" class="inline-block mt-3 text-sm font-medium text-green-600 underline hover:text-green-700">
                         View Order Details
                     </a>
                 </x-alert>

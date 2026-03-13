@@ -8,10 +8,10 @@
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0">
     {{-- Backdrop --}}
-    <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" @click="closeCheckout()"></div>
+    <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="closeCheckout()"></div>
 
     {{-- Modal --}}
-    <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+    <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
         @click.stop
         x-show="checkoutOpen"
         x-transition:enter="transition ease-out duration-200"

@@ -17,6 +17,9 @@
     <!-- Alpine.js -->
     {{-- <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script> --}}
 
+    <!-- App base URL for JS fetch calls -->
+    <script>window.__appBaseUrl = @json(rtrim(config('app.url'), '/'));</script>
+
     <!-- Theme Store -->
     <script>
         document.addEventListener('alpine:init', () => {

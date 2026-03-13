@@ -39,6 +39,12 @@
 
 @push('scripts')
 <script>
+    (function() {
+        try {
+            localStorage.removeItem('memorial_signup_step1');
+            localStorage.removeItem('memorial_signup_step2');
+        } catch (e) {}
+    })();
     setTimeout(function () {
         window.location.href = @json(route('memorial.public', ['slug' => $memorial->slug]));
     }, 4000);

@@ -14,6 +14,9 @@
     <style>{{ \App\Helpers\BrandingHelper::brandColorCss() }}</style>
     @stack('head')
 
+    <!-- App base URL for JS fetch calls -->
+    <script>window.__appBaseUrl = @json(rtrim(config('app.url'), '/'));</script>
+
     <!-- Theme Store -->
     <script>
         document.addEventListener('alpine:init', () => {
@@ -281,6 +284,8 @@
     </div>
     @endif
     @endauth
+
+    @include('vendor.laraupdater.notification')
 </body>
 
 @stack('scripts')

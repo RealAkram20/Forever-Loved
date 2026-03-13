@@ -8,13 +8,23 @@ $zipPath = "c:\xampp\htdocs\Forever-love-deploy.zip"
 Write-Host "`n=== Forever-love Hostinger Deploy ===" -ForegroundColor Cyan
 Set-Location $projectRoot
 
+# 0. Pre-flight checks
+$geoDb = Join-Path $projectRoot "database\geo\world.sqlite3"
+if (-not (Test-Path $geoDb)) {
+    Write-Host "`n[!] database\geo\world.sqlite3 is MISSING." -ForegroundColor Red
+    Write-Host "    Run: php artisan geo:import" -ForegroundColor Yellow
+    Write-Host "    The country/state/city selects will not work without this file." -ForegroundColor Yellow
+    $continue = Read-Host "Continue without it? (y/N)"
+    if ($continue -ne 'y') { exit 1 }
+}
+
 # 1. Build frontend assets
-Write-Host "`n[1/3] Building Vite assets..." -ForegroundColor Yellow
+Write-Host "`n[1/4] Building Vite assets..." -ForegroundColor Yellow
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "npm run build failed" }
 
 # 2. Production composer install (optional - uses existing vendor if composer fails)
-Write-Host "`n[2/3] Installing production dependencies..." -ForegroundColor Yellow
+Write-Host "`n[2/4] Installing production dependencies..." -ForegroundColor Yellow
 $composerCmd = $null
 if (Get-Command composer -ErrorAction SilentlyContinue) { $composerCmd = "composer" }
 elseif (Test-Path "c:\xampp\htdocs\composer.phar") { $composerCmd = "php c:\xampp\htdocs\composer.phar" }
@@ -32,24 +42,49 @@ if ($composerCmd) {
     Write-Host "Composer not found - using existing vendor folder" -ForegroundColor Yellow
 }
 
-# 3. Create zip (exclude node_modules, .git, etc.)
-Write-Host "`n[3/3] Creating deploy zip..." -ForegroundColor Yellow
+# 3. Clean compiled views before packaging
+Write-Host "`n[3/4] Cleaning compiled views..." -ForegroundColor Yellow
+$viewsDir = Join-Path $projectRoot "storage\framework\views"
+Get-ChildItem -Path $viewsDir -Filter "*.php" -ErrorAction SilentlyContinue | Remove-Item -Force
+
+# 4. Create zip (exclude node_modules, .git, etc.)
+Write-Host "`n[4/4] Creating deploy zip..." -ForegroundColor Yellow
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 
-$include = @(
-    "app", "bootstrap", "config", "database", "public", "resources", "routes", "storage", "vendor",
-    ".env.example", "artisan", "composer.json", "composer.lock", "package.json"
+$includeDirs = @(
+    "app", "bootstrap", "config", "database", "public", "resources", "routes", "storage", "vendor"
+)
+$includeFiles = @(
+    ".env.production", "artisan", "composer.json", "composer.lock", "package.json", "version.txt"
 )
 
 $tempDir = Join-Path $env:TEMP "Forever-love-deploy"
 if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 
-foreach ($item in $include) {
-    $src = Join-Path $projectRoot $item
+foreach ($dir in $includeDirs) {
+    $src = Join-Path $projectRoot $dir
     if (Test-Path $src) {
-        Copy-Item -Path $src -Destination $tempDir -Recurse -Force
+        Copy-Item -Path $src -Destination (Join-Path $tempDir $dir) -Recurse -Force
     }
+}
+
+foreach ($file in $includeFiles) {
+    $src = Join-Path $projectRoot $file
+    if (Test-Path $src) {
+        Copy-Item -Path $src -Destination $tempDir -Force
+    } else {
+        Write-Host "  [skip] $file not found" -ForegroundColor Yellow
+    }
+}
+
+# Patch public/.htaccess for production (domain root): RewriteBase /Forever-love/ -> /
+$htaccessPath = Join-Path $tempDir "public\.htaccess"
+if (Test-Path $htaccessPath) {
+    $content = Get-Content $htaccessPath -Raw
+    $content = $content -replace 'RewriteBase\s+/Forever-love/', 'RewriteBase /'
+    Set-Content -Path $htaccessPath -Value $content -NoNewline
+    Write-Host "  Patched public/.htaccess: RewriteBase -> /" -ForegroundColor Gray
 }
 
 # Create zip with forward slashes (/) for Linux compatibility
@@ -68,4 +103,14 @@ Remove-Item $tempDir -Recurse -Force
 $sizeMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
 Write-Host "`n=== Done ===" -ForegroundColor Green
 Write-Host "Zip: $zipPath ($sizeMB MB)" -ForegroundColor Green
-Write-Host "`nNext: Upload to Hostinger File Manager and follow HOSTINGER-DEPLOY.md" -ForegroundColor Cyan
+Write-Host "`nIncluded:" -ForegroundColor Cyan
+Write-Host "  - .env.production (copy to .env on server and fill in credentials)" -ForegroundColor Gray
+Write-Host "  - version.txt (for update system)" -ForegroundColor Gray
+Write-Host "  - public/updates/ (update packages)" -ForegroundColor Gray
+if (Test-Path $geoDb) {
+    Write-Host "  - database/geo/world.sqlite3 (country/state/city data)" -ForegroundColor Gray
+}
+Write-Host "`nAfter upload, run on server:" -ForegroundColor Cyan
+Write-Host "  cp .env.production .env   # then edit with your credentials" -ForegroundColor Gray
+Write-Host "  php artisan storage:link" -ForegroundColor Gray
+Write-Host "  php artisan config:cache && php artisan route:cache && php artisan view:cache" -ForegroundColor Gray

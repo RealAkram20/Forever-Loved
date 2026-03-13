@@ -681,6 +681,34 @@ class SettingsController extends Controller
         return back()->with('success', 'Subscription updated.');
     }
 
+    // ─── System Updates ─────────────────────────────────────────────
+
+    public function updates()
+    {
+        $updaterController = app(\App\Http\Controllers\Admin\LaraUpdaterController::class);
+        $currentVersion = $updaterController->getCurrentVersion();
+
+        $updateAvailable = null;
+        try {
+            $checkResponse = $updaterController->check();
+            $data = json_decode($checkResponse->getContent(), true);
+            if (!empty($data['version'])) {
+                $updateAvailable = $data;
+            }
+        } catch (\Throwable $e) {
+            // silently fail
+        }
+
+        $updateBaseUrl = config('laraupdater.update_baseurl', url('/updates'));
+
+        return view('pages.settings.updates', [
+            'title' => 'System Updates',
+            'currentVersion' => $currentVersion,
+            'updateAvailable' => $updateAvailable,
+            'updateBaseUrl' => $updateBaseUrl,
+        ]);
+    }
+
     // ─── Plans ───────────────────────────────────────────────────────
 
     public function plans()

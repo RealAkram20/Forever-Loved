@@ -13,14 +13,14 @@
               ERROR
           </h1>
 
-          <img src="/images/error/404.svg" alt="404" class="dark:hidden" />
-          <img src="/images/error/404-dark.svg" alt="404" class="hidden" />
+          <img src="{{ asset('images/error/404.svg') }}" alt="404" class="dark:hidden" />
+          <img src="{{ asset('images/error/404-dark.svg') }}" alt="404" class="hidden" />
 
           <p class="mt-10 mb-6 text-base text-gray-700 sm:text-lg">
               We can't seem to find the page you are looking for!
           </p>
 
-          <a href="/"
+          <a href="{{ url('/') }}"
               class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3.5 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800">
               Back to Home Page
           </a>

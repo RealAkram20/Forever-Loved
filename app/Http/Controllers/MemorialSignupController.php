@@ -152,11 +152,15 @@ class MemorialSignupController extends Controller
         }
         $plans = SubscriptionPlan::where('is_active', true)->orderBy('sort_order')->get();
         $currency = SystemSetting::get('payments.currency', 'USD');
+        $paymentsEnabled = (bool) SystemSetting::get('payments.enabled', false);
+        $pesapalEnabled = (bool) SystemSetting::get('payments.pesapal_enabled', false);
         return view('pages.memorial-signup.step3', [
             'title' => 'Create Memorial - Choose Plan',
             'data' => $data,
             'plans' => $plans,
             'currency' => $currency,
+            'paymentsEnabled' => $paymentsEnabled,
+            'pesapalEnabled' => $pesapalEnabled,
         ]);
     }
 
@@ -191,54 +195,7 @@ class MemorialSignupController extends Controller
             return response()->json(['success' => false, 'error' => 'Please select a paid plan.'], 400);
         }
 
-        $fullName = trim(implode(' ', array_filter([
-            $data['first_name'],
-            $data['middle_name'] ?? '',
-            $data['last_name'],
-        ])));
-
-        $memorial = Memorial::create([
-            'user_id' => $request->user()->id,
-            'slug' => $this->generateSlug($fullName),
-            'title' => 'In Loving Memory of ' . $fullName,
-            'full_name' => $fullName,
-            'first_name' => $data['first_name'],
-            'middle_name' => $data['middle_name'] ?? null,
-            'last_name' => $data['last_name'],
-            'gender' => $data['gender'] ?? null,
-            'relationship' => $data['relationship'] ?? null,
-            'short_description' => $data['short_description'] ?? null,
-            'nationality' => $data['nationality'] ?? null,
-            'primary_profession' => $data['primary_profession'] ?? null,
-            'major_achievements' => $data['major_achievements'] ?? null,
-            'date_of_birth' => $data['date_of_birth'] ?? null,
-            'date_of_passing' => $data['date_of_passing'] ?? null,
-            'birth_city' => $data['birth_city'] ?? null,
-            'birth_state' => $data['birth_state'] ?? null,
-            'birth_country' => $data['birth_country'] ?? null,
-            'death_city' => $data['death_city'] ?? null,
-            'death_state' => $data['death_state'] ?? null,
-            'death_country' => $data['death_country'] ?? null,
-            'cause_of_death' => $data['cause_of_death'] ?? null,
-            'designation' => (!empty($data['cause_of_death']) && $data['cause_of_death'] !== 'No designation') ? $data['cause_of_death'] : null,
-            'cause_of_death_private' => $data['cause_of_death_private'] ?? false,
-            'biography' => null,
-            'theme' => 'free',
-            'plan' => 'free',
-            'completion_status' => 'pending',
-            'is_public' => true,
-        ]);
-
-        try {
-            $bioService = app(TemplateBioGeneratorService::class);
-            $biography = $bioService->generateStructured($memorial);
-            if ($biography && trim($biography) !== '') {
-                $memorial->update(['biography' => $biography]);
-            }
-        } catch (\Throwable $e) {
-            report($e);
-        }
-
+        $memorial = $this->createMemorialFromSession($request->user(), $data, $plan);
         session()->forget(self::SESSION_KEY);
 
         return response()->json([
@@ -267,57 +224,10 @@ class MemorialSignupController extends Controller
             return redirect()->route('memorial.create.step1');
         }
 
-        $fullName = trim(implode(' ', array_filter([
-            $data['first_name'],
-            $data['middle_name'] ?? '',
-            $data['last_name'],
-        ])));
-
         $plan = SubscriptionPlan::find($data['plan_id']);
         $isFreePlan = $plan && $plan->isFree();
 
-        $memorial = Memorial::create([
-            'user_id' => $request->user()->id,
-            'slug' => $this->generateSlug($fullName),
-            'title' => 'In Loving Memory of ' . $fullName,
-            'full_name' => $fullName,
-            'first_name' => $data['first_name'],
-            'middle_name' => $data['middle_name'] ?? null,
-            'last_name' => $data['last_name'],
-            'gender' => $data['gender'] ?? null,
-            'relationship' => $data['relationship'] ?? null,
-            'short_description' => $data['short_description'] ?? null,
-            'nationality' => $data['nationality'] ?? null,
-            'primary_profession' => $data['primary_profession'] ?? null,
-            'major_achievements' => $data['major_achievements'] ?? null,
-            'date_of_birth' => $data['date_of_birth'] ?? null,
-            'date_of_passing' => $data['date_of_passing'] ?? null,
-            'birth_city' => $data['birth_city'] ?? null,
-            'birth_state' => $data['birth_state'] ?? null,
-            'birth_country' => $data['birth_country'] ?? null,
-            'death_city' => $data['death_city'] ?? null,
-            'death_state' => $data['death_state'] ?? null,
-            'death_country' => $data['death_country'] ?? null,
-            'cause_of_death' => $data['cause_of_death'] ?? null,
-            'designation' => (!empty($data['cause_of_death']) && $data['cause_of_death'] !== 'No designation') ? $data['cause_of_death'] : null,
-            'cause_of_death_private' => $data['cause_of_death_private'] ?? false,
-            'biography' => null,
-            'theme' => 'free',
-            'plan' => 'free',
-            'completion_status' => 'pending',
-            'is_public' => true,
-        ]);
-
-        try {
-            $bioService = app(TemplateBioGeneratorService::class);
-            $biography = $bioService->generateStructured($memorial);
-            if ($biography && trim($biography) !== '') {
-                $memorial->update(['biography' => $biography]);
-            }
-        } catch (\Throwable $e) {
-            report($e);
-        }
-
+        $memorial = $this->createMemorialFromSession($request->user(), $data, $plan);
         session()->forget(self::SESSION_KEY);
 
         if ($isFreePlan && $plan) {
@@ -361,6 +271,61 @@ class MemorialSignupController extends Controller
             'title' => 'Preparing Memorial',
             'memorial' => $memorial,
         ]);
+    }
+
+    private function createMemorialFromSession($user, array $data, ?SubscriptionPlan $plan = null): Memorial
+    {
+        $fullName = trim(implode(' ', array_filter([
+            $data['first_name'],
+            $data['middle_name'] ?? '',
+            $data['last_name'],
+        ])));
+
+        $planLabel = ($plan && !$plan->isFree()) ? 'paid' : 'free';
+
+        $memorial = Memorial::create([
+            'user_id' => $user->id,
+            'slug' => $this->generateSlug($fullName),
+            'title' => 'In Loving Memory of ' . $fullName,
+            'full_name' => $fullName,
+            'first_name' => $data['first_name'],
+            'middle_name' => $data['middle_name'] ?? null,
+            'last_name' => $data['last_name'],
+            'gender' => $data['gender'] ?? null,
+            'relationship' => $data['relationship'] ?? null,
+            'short_description' => $data['short_description'] ?? null,
+            'nationality' => $data['nationality'] ?? null,
+            'primary_profession' => $data['primary_profession'] ?? null,
+            'major_achievements' => $data['major_achievements'] ?? null,
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+            'date_of_passing' => $data['date_of_passing'] ?? null,
+            'birth_city' => $data['birth_city'] ?? null,
+            'birth_state' => $data['birth_state'] ?? null,
+            'birth_country' => $data['birth_country'] ?? null,
+            'death_city' => $data['death_city'] ?? null,
+            'death_state' => $data['death_state'] ?? null,
+            'death_country' => $data['death_country'] ?? null,
+            'cause_of_death' => $data['cause_of_death'] ?? null,
+            'designation' => (!empty($data['cause_of_death']) && $data['cause_of_death'] !== 'No designation') ? $data['cause_of_death'] : null,
+            'cause_of_death_private' => $data['cause_of_death_private'] ?? false,
+            'biography' => null,
+            'theme' => $planLabel,
+            'plan' => $planLabel,
+            'completion_status' => 'pending',
+            'is_public' => true,
+        ]);
+
+        try {
+            $bioService = app(TemplateBioGeneratorService::class);
+            $biography = $bioService->generateStructured($memorial);
+            if ($biography && trim($biography) !== '') {
+                $memorial->update(['biography' => $biography]);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $memorial;
     }
 
     private function generateSlug(string $fullName): string

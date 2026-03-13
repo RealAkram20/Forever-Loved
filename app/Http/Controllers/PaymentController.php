@@ -34,15 +34,19 @@ class PaymentController extends Controller
 
     private function processCreateOrder(Request $request)
     {
+        $gateway = $request->input('payment_gateway', 'pesapal');
+
         try {
-            $request->validate([
+            $rules = [
                 'plan_id' => ['required', 'exists:subscription_plans,id'],
+                'payment_gateway' => ['nullable', 'string', 'in:manual,pesapal'],
                 'payment_method' => ['nullable', 'string', 'in:mtn,airtel,card'],
                 'phone_number' => ['nullable', 'string', 'max:20'],
                 'from_signup' => ['nullable', 'boolean'],
                 'memorial_slug' => ['nullable', 'string', 'max:255'],
                 'memorial_id' => ['nullable', 'integer', 'exists:memorials,id'],
-            ]);
+            ];
+            $request->validate($rules);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $firstError = collect($e->errors())->flatten()->first();
             return response()->json(['success' => false, 'error' => $firstError ?? 'Invalid request.'], 422);
@@ -52,35 +56,60 @@ class PaymentController extends Controller
             return response()->json(['success' => false, 'error' => 'Payments are not enabled.'], 400);
         }
 
-        $pesapal = app(PesapalService::class);
-        if (! $pesapal->isEnabled()) {
-            return response()->json(['success' => false, 'error' => 'Pesapal is not configured. Check Admin → Settings → Payments.'], 400);
-        }
-
         $plan = SubscriptionPlan::findOrFail($request->plan_id);
         if ($plan->isFree()) {
             return response()->json(['success' => false, 'error' => 'Free plans do not require payment.'], 400);
         }
 
         $user = $request->user();
+        if (! $user) {
+            return response()->json(['success' => false, 'error' => 'Please log in to continue.'], 401);
+        }
 
         $memorial = null;
         $memorialSlug = $request->memorial_slug;
         $memorialId = $request->memorial_id;
         if ($memorialId) {
-            $memorial = \App\Models\Memorial::where('id', $memorialId)->where('user_id', $user->id)->first();
+            $memorial = Memorial::where('id', $memorialId)->where('user_id', $user->id)->first();
         } elseif ($memorialSlug) {
-            $memorial = \App\Models\Memorial::where('slug', $memorialSlug)->where('user_id', $user->id)->first();
+            $memorial = Memorial::where('slug', $memorialSlug)->where('user_id', $user->id)->first();
         }
-        if (!$memorial) {
+        if (! $memorial) {
             return response()->json(['success' => false, 'error' => 'Please select a memorial for this subscription.'], 400);
-        }
-        if (! $user) {
-            return response()->json(['success' => false, 'error' => 'Please log in to continue.'], 401);
         }
 
         $currency = SystemSetting::get('payments.currency', 'USD');
         $merchantRef = 'SUB-' . strtoupper(Str::random(8)) . '-' . time();
+
+        // Manual: create pending order; admin approves in Settings → Payment Orders
+        if ($gateway === 'manual') {
+            $order = PaymentOrder::create([
+                'user_id' => $user->id,
+                'memorial_id' => $memorial->id,
+                'subscription_plan_id' => $plan->id,
+                'merchant_reference' => $merchantRef,
+                'amount' => $plan->price,
+                'currency' => $currency,
+                'status' => 'pending',
+                'payment_gateway' => 'manual',
+                'metadata' => array_filter([
+                    'from_signup' => $request->from_signup,
+                    'memorial_slug' => $memorial->slug,
+                ]),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'reload' => true,
+                'message' => 'Payment request submitted. An admin will process it shortly. Check Payment History for status.',
+            ]);
+        }
+
+        // Pesapal: create order and redirect to payment
+        $pesapal = app(PesapalService::class);
+        if (! $pesapal->isEnabled()) {
+            return response()->json(['success' => false, 'error' => 'Pesapal is not configured. Check Admin → Settings → Payments.'], 400);
+        }
 
         $order = PaymentOrder::create([
             'user_id' => $user->id,

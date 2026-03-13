@@ -149,7 +149,6 @@ class PesapalService
             'description' => substr($description, 0, 100),
             'callback_url' => $callbackUrl,
             'notification_id' => $ipnId,
-            'redirect_mode' => 'PARENT_WINDOW',
             'billing_address' => array_merge([
                 'email_address' => $billingAddress['email_address'] ?? '',
                 'phone_number' => $billingAddress['phone_number'] ?? '',

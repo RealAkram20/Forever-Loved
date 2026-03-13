@@ -141,7 +141,8 @@ document.addEventListener('alpine:init', () => {
             this.loading = true;
 
             try {
-                let url = `/api/location/cities/${this.stateId}?q=${encodeURIComponent(query)}&limit=50`;
+                const base = window.__appBaseUrl || '';
+                let url = `${base}/api/location/cities/${this.stateId}?q=${encodeURIComponent(query)}&limit=50`;
                 if (this.countryCode) {
                     url += `&country_code=${encodeURIComponent(this.countryCode)}`;
                 }

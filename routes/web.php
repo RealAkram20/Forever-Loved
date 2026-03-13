@@ -135,6 +135,8 @@ Route::prefix('settings')->name('settings.')->middleware('role:admin|super-admin
     Route::post('/plans', [SettingsController::class, 'storePlan'])->name('plans.store');
     Route::put('/plans/{plan}', [SettingsController::class, 'updatePlan'])->name('plans.update');
     Route::delete('/plans/{plan}', [SettingsController::class, 'destroyPlan'])->name('plans.destroy');
+
+    Route::get('/updates', [SettingsController::class, 'updates'])->name('updates');
 });
 });
 

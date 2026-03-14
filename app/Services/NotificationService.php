@@ -805,4 +805,117 @@ class NotificationService
             }
         }
     }
+
+    // ─── Subscription Lifecycle Notifications ────────────────────────
+
+    public static function notifySubscriptionExpiringSoon(
+        \App\Models\UserSubscription $subscription,
+        int $daysLeft
+    ): void {
+        $memorial = $subscription->memorial;
+        $planName = $subscription->plan?->name ?? 'subscription';
+        $memorialName = $memorial?->full_name ?? 'your memorial';
+        $daysLabel = $daysLeft === 1 ? '1 day' : "{$daysLeft} days";
+
+        if ($subscription->user_id) {
+            static::send(
+                userId: $subscription->user_id,
+                type: 'subscription_expiring',
+                title: 'Subscription Expiring Soon',
+                message: "Your {$planName} plan for {$memorialName} expires in {$daysLabel}. Renew now to keep all premium features.",
+                icon: 'warning',
+                actionUrl: route('subscription.index'),
+                data: [
+                    'subscription_id' => $subscription->id,
+                    'memorial_id' => $memorial?->id,
+                    'days_left' => $daysLeft,
+                ],
+            );
+        }
+
+        static::sendToAdmins(
+            type: 'subscription_expiring',
+            title: 'Subscription Expiring Soon',
+            message: "{$memorial?->owner?->name}'s {$planName} plan for {$memorialName} expires in {$daysLabel}.",
+            icon: 'warning',
+            actionUrl: route('settings.subscriptions'),
+            data: [
+                'subscription_id' => $subscription->id,
+                'user_id' => $subscription->user_id,
+                'memorial_id' => $memorial?->id,
+            ],
+        );
+    }
+
+    public static function notifySubscriptionExpiredToday(
+        \App\Models\UserSubscription $subscription
+    ): void {
+        $memorial = $subscription->memorial;
+        $planName = $subscription->plan?->name ?? 'subscription';
+        $memorialName = $memorial?->full_name ?? 'your memorial';
+
+        if ($subscription->user_id) {
+            static::send(
+                userId: $subscription->user_id,
+                type: 'subscription_expired',
+                title: 'Subscription Expired',
+                message: "Your {$planName} plan for {$memorialName} has expired today. Renew to restore premium features.",
+                icon: 'error',
+                actionUrl: route('subscription.index'),
+                data: [
+                    'subscription_id' => $subscription->id,
+                    'memorial_id' => $memorial?->id,
+                ],
+            );
+        }
+
+        static::sendToAdmins(
+            type: 'subscription_expired',
+            title: 'Subscription Expired',
+            message: "{$memorial?->owner?->name}'s {$planName} plan for {$memorialName} expired today.",
+            icon: 'error',
+            actionUrl: route('settings.subscriptions'),
+            data: [
+                'subscription_id' => $subscription->id,
+                'user_id' => $subscription->user_id,
+                'memorial_id' => $memorial?->id,
+            ],
+        );
+    }
+
+    public static function notifySubscriptionOverdue(
+        \App\Models\UserSubscription $subscription
+    ): void {
+        $memorial = $subscription->memorial;
+        $planName = $subscription->plan?->name ?? 'subscription';
+        $memorialName = $memorial?->full_name ?? 'your memorial';
+
+        if ($subscription->user_id) {
+            static::send(
+                userId: $subscription->user_id,
+                type: 'subscription_overdue',
+                title: 'Subscription Overdue',
+                message: "Your {$planName} plan for {$memorialName} is overdue. Premium features have been locked. Renew now to restore them.",
+                icon: 'error',
+                actionUrl: route('subscription.index'),
+                data: [
+                    'subscription_id' => $subscription->id,
+                    'memorial_id' => $memorial?->id,
+                ],
+            );
+        }
+
+        static::sendToAdmins(
+            type: 'subscription_overdue',
+            title: 'Subscription Overdue',
+            message: "{$memorial?->owner?->name}'s {$planName} plan for {$memorialName} is overdue. Premium features locked.",
+            icon: 'error',
+            actionUrl: route('settings.subscriptions'),
+            data: [
+                'subscription_id' => $subscription->id,
+                'user_id' => $subscription->user_id,
+                'memorial_id' => $memorial?->id,
+            ],
+        );
+    }
 }

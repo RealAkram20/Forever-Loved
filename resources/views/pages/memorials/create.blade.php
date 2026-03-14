@@ -224,7 +224,7 @@
                     <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
                         <div>
                             <x-form.country-select id="create_death_country" name="death_country" label="Country"
-                                :value="old('death_country')" :autoDetect="true" />
+                                :value="old('death_country')" />
                         </div>
                         <div>
                             <x-form.state-select id="create_death_state" name="death_state"

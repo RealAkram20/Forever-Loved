@@ -83,7 +83,7 @@ window.detectUserCountry = function() {
         <ul x-ref="listbox" class="max-h-60 overflow-y-auto py-1" role="listbox">
             <template x-for="(country, index) in filtered" :key="country.iso2">
                 <li
-                    @click="selectCountry(country)"
+                    @mousedown.prevent="selectCountry(country)"
                     @mouseenter="highlightIndex = index"
                     :class="{
                         'bg-brand-50 text-brand-700': highlightIndex === index,

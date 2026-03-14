@@ -50,7 +50,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('memorials/{memorial}/status', [MemorialController::class, 'updateStatus'])->name('memorials.status');
     Route::patch('memorials/{memorial}/section', [MemorialController::class, 'updateSection'])->name('memorials.section');
     Route::patch('memorials/{memorial}/fields', [MemorialController::class, 'updateFields'])->name('memorials.fields');
-    Route::post('memorials/{memorial}/generate-biography', [MemorialController::class, 'generateBiography'])->name('memorials.generate-biography');
+    Route::post('memorials/{memorial}/generate-biography', [MemorialController::class, 'generateBiography'])->middleware('throttle:10,1')->name('memorials.generate-biography');
     Route::post('memorials/{memorial}/generate-template-biography', [MemorialController::class, 'generateTemplateBiography'])->name('memorials.generate-template-biography');
     Route::patch('memorials/{memorial}/biography', [MemorialController::class, 'saveBiography'])->name('memorials.save-biography');
     Route::resource('memorials', MemorialController::class);

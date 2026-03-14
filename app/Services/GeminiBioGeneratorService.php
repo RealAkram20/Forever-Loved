@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\AiConfigHelper;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +26,7 @@ class GeminiBioGeneratorService
             }
         }
 
-        if (!config('services.gemini.enabled') || !config('services.gemini.api_key')) {
+        if (!AiConfigHelper::isEnabled() || !AiConfigHelper::getApiKey()) {
             return $this->templateGenerator->generate($structuredData);
         }
 
@@ -46,11 +47,11 @@ class GeminiBioGeneratorService
     protected function callGemini(array $structuredData): array
     {
         $models = array_filter(array_unique([
-            config('services.gemini.model', 'gemini-2.5-flash'),
+            AiConfigHelper::getModel() ?: 'gemini-2.5-flash',
             'gemini-2.5-flash',
             'gemini-2.0-flash',
         ]));
-        $apiKey = config('services.gemini.api_key');
+        $apiKey = AiConfigHelper::getApiKey();
         $lastError = null;
 
         $jsonData = json_encode($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -137,8 +138,8 @@ class GeminiBioGeneratorService
 
     public static function buildStructuredDataFromMemorial(\App\Models\Memorial $memorial): array
     {
-        $fullName = trim($memorial->full_name ?? '');
-        $nationality = trim($memorial->nationality ?? '');
+        $fullName = self::sanitizeText(trim($memorial->full_name ?? ''), 255);
+        $nationality = self::sanitizeText(trim($memorial->nationality ?? ''), 255);
 
         $birthPlace = self::cleanPlaceName(trim(implode(', ', array_filter([
             $memorial->birth_city,
@@ -158,49 +159,50 @@ class GeminiBioGeneratorService
 
         $children = $memorial->children
             ->filter(fn ($c) => $c->child_name && strcasecmp(trim($c->child_name), $fullName) !== 0)
+            ->take(20)
             ->map(fn ($c) => [
-                'child_name' => $c->child_name,
+                'child_name' => self::sanitizeText($c->child_name, 255),
                 'birth_year' => $c->birth_year,
             ])->values()->toArray();
 
-        $spouses = $memorial->spouses->map(fn ($s) => [
-            'spouse_name' => $s->spouse_name,
+        $spouses = $memorial->spouses->take(10)->map(fn ($s) => [
+            'spouse_name' => self::sanitizeText($s->spouse_name, 255),
             'marriage_start_year' => $s->marriage_start_year,
             'marriage_end_year' => $s->marriage_end_year,
         ])->toArray();
 
-        $education = $memorial->education->map(fn ($e) => [
-            'institution' => $e->institution_name,
+        $education = $memorial->education->take(10)->map(fn ($e) => [
+            'institution' => self::sanitizeText($e->institution_name, 255),
             'start_year' => $e->start_year,
             'end_year' => $e->end_year,
-            'degree' => $e->degree,
+            'degree' => self::sanitizeText($e->degree, 255),
         ])->toArray();
 
-        $parents = $memorial->parents->map(fn ($p) => [
-            'parent_name' => $p->parent_name,
+        $parents = $memorial->parents->take(10)->map(fn ($p) => [
+            'parent_name' => self::sanitizeText($p->parent_name, 255),
             'relationship_type' => $p->relationship_type,
         ])->toArray();
 
-        $siblings = $memorial->siblings->map(fn ($s) => [
-            'sibling_name' => $s->sibling_name,
+        $siblings = $memorial->siblings->take(10)->map(fn ($s) => [
+            'sibling_name' => self::sanitizeText($s->sibling_name, 255),
         ])->toArray();
 
-        $companies = $memorial->notableCompanies->map(fn ($c) => [
-            'company_name' => $c->company_name,
+        $companies = $memorial->notableCompanies->take(10)->map(fn ($c) => [
+            'company_name' => self::sanitizeText($c->company_name, 255),
         ])->toArray();
 
-        $coFounders = $memorial->coFounders->map(fn ($c) => [
-            'name' => $c->name,
+        $coFounders = $memorial->coFounders->take(10)->map(fn ($c) => [
+            'name' => self::sanitizeText($c->name, 255),
         ])->toArray();
 
         return array_filter([
             'full_name' => $fullName,
             'nationality' => $nationality ?: null,
-            'occupation' => trim($memorial->primary_profession ?? $memorial->short_description ?? $memorial->designation ?? '') ?: null,
-            'known_for' => trim($memorial->known_for ?? '') ?: null,
-            'major_achievements' => trim($memorial->major_achievements ?? '') ?: null,
-            'notable_title' => trim($memorial->notable_title ?? '') ?: null,
-            'more_details' => trim($memorial->more_details ?? '') ?: null,
+            'occupation' => self::sanitizeText(trim($memorial->primary_profession ?? $memorial->short_description ?? $memorial->designation ?? ''), 255) ?: null,
+            'known_for' => self::sanitizeText(trim($memorial->known_for ?? ''), 500) ?: null,
+            'major_achievements' => self::sanitizeText(trim($memorial->major_achievements ?? ''), 2000) ?: null,
+            'notable_title' => self::sanitizeText(trim($memorial->notable_title ?? ''), 255) ?: null,
+            'more_details' => self::sanitizeText(trim($memorial->more_details ?? ''), 2000) ?: null,
             'birth_date' => $memorial->date_of_birth?->format('F j, Y'),
             'death_date' => $memorial->date_of_passing?->format('F j, Y'),
             'age_at_death' => $ageAtDeath,
@@ -214,6 +216,17 @@ class GeminiBioGeneratorService
             'companies' => !empty($companies) ? $companies : null,
             'co_founders' => !empty($coFounders) ? $coFounders : null,
         ], fn ($v) => $v !== null);
+    }
+
+    private static function sanitizeText(?string $text, int $maxLength = 255): string
+    {
+        if (!$text) {
+            return '';
+        }
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text);
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        $text = preg_replace('/ {3,}/', '  ', $text);
+        return mb_substr(trim($text), 0, $maxLength);
     }
 
     private static function cleanPlaceName(string $place): string

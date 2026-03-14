@@ -22,9 +22,11 @@ class SubscriptionController extends Controller
         }
         $plans = SubscriptionPlan::where('is_active', true)->orderBy('sort_order')->get();
         $currentSubscriptions = UserSubscription::where('user_id', $user->id)
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'overdue'])
             ->where(function ($q) {
-                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                $q->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now())
+                    ->orWhere('status', 'overdue');
             })
             ->with(['plan', 'memorial'])
             ->latest()

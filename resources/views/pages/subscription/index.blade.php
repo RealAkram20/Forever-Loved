@@ -23,7 +23,7 @@
         x-init="init(); initCheckoutFromSignup()">
         {{-- Create Payment --}}
         @if ($paymentsEnabled && $plans->where('price', '>', 0)->isNotEmpty() && $memorials->isNotEmpty())
-            <x-common.component-card title="Create Payment" desc="Select a memorial, choose a plan, and pay. Pesapal: payment popup opens. Manual: admin will process your request.">
+            <x-common.component-card title="Create Payment" desc="Select a memorial, choose a plan, and pay. Pesapal: payment popup opens. Manual: admin will process your request." id="create-payment-section">
                 <div x-data="createPaymentForm({{ $pesapalEnabled ? 'true' : 'false' }})" x-init="init()">
                     <div class="space-y-4">
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -107,13 +107,13 @@
             </x-common.component-card>
         @endif
 
-        {{-- Current Plans (per memorial) - only show when user has active subscriptions --}}
-        @if ($currentSubscriptions->filter(fn($s) => $s->isActive())->isNotEmpty())
+        {{-- Current Plans (per memorial) --}}
+        @if ($currentSubscriptions->filter(fn($s) => $s->isActive() || $s->isOverdue())->isNotEmpty())
             <x-common.component-card title="Your Memorials & Plans" desc="Billing is per memorial. Each memorial has its own plan.">
                 <div class="space-y-4">
                     @foreach ($currentSubscriptions as $sub)
-                        @if ($sub->isActive())
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                        @if ($sub->isActive() || $sub->isOverdue())
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border {{ $sub->isOverdue() ? 'border-red-300 dark:border-red-700 bg-red-50/50 dark:bg-red-900/10' : ($sub->isExpiringSoon() ? 'border-yellow-300 dark:border-yellow-700 bg-yellow-50/50 dark:bg-yellow-900/10' : 'border-gray-200 dark:border-gray-700') }} p-4">
                                 <div>
                                     <h4 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ $sub->plan->name }}</h4>
                                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -124,13 +124,33 @@
                                         @endif
                                     </p>
                                     <div class="mt-2 flex flex-wrap gap-3 text-sm">
-                                        <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-2.5 py-0.5 font-medium text-green-800 dark:text-green-400">Active</span>
+                                        @if ($sub->isOverdue())
+                                            <span class="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-2.5 py-0.5 font-medium text-red-800 dark:text-red-400">Overdue</span>
+                                            <span class="text-red-600 dark:text-red-400">Premium features locked. Renew to restore access.</span>
+                                        @elseif ($sub->isExpiringSoon())
+                                            <span class="inline-flex items-center rounded-full bg-yellow-100 dark:bg-yellow-900/30 px-2.5 py-0.5 font-medium text-yellow-800 dark:text-yellow-400">Expiring Soon</span>
+                                            <span class="text-yellow-600 dark:text-yellow-400">{{ $sub->daysUntilExpiry() }} day(s) remaining</span>
+                                        @else
+                                            <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-2.5 py-0.5 font-medium text-green-800 dark:text-green-400">Active</span>
+                                        @endif
                                         <span class="text-gray-600 dark:text-gray-400">{{ $sub->plan->storage_limit_mb }} MB storage</span>
-                                        @if ($sub->ends_at)
+                                        @if ($sub->ends_at && $sub->isActive())
                                             <span class="text-gray-500 dark:text-gray-400">Renews {{ $sub->ends_at->format('M j, Y') }}</span>
+                                        @elseif ($sub->ends_at && $sub->isOverdue())
+                                            <span class="text-red-500 dark:text-red-400">Expired {{ $sub->ends_at->format('M j, Y') }}</span>
                                         @endif
                                     </div>
                                 </div>
+                                @if ($sub->isOverdue() || $sub->isExpiringSoon())
+                                    <div class="flex-shrink-0">
+                                        <button type="button"
+                                            @click="$refs.createMemorial && ($refs.createMemorial.value = '{{ $sub->memorial_id }}'); $refs.createPlan && ($refs.createPlan.value = '{{ $sub->subscription_plan_id }}'); document.querySelector('#create-payment-section')?.scrollIntoView({behavior: 'smooth'})"
+                                            class="inline-flex items-center gap-2 rounded-lg {{ $sub->isOverdue() ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600' }} px-4 py-2 text-sm font-medium text-white transition">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                            Renew Now
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         @endif
                     @endforeach

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\AiConfigHelper;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +26,7 @@ class ClaudeBioGeneratorService
             }
         }
 
-        if (!config('services.anthropic.enabled') || !config('services.anthropic.api_key')) {
+        if (!AiConfigHelper::isEnabled() || !AiConfigHelper::getApiKey()) {
             return $this->templateGenerator->generate($structuredData);
         }
 
@@ -46,8 +47,8 @@ class ClaudeBioGeneratorService
 
     protected function callClaude(array $structuredData): array
     {
-        $apiKey = config('services.anthropic.api_key');
-        $model = config('services.anthropic.model', 'claude-3-5-sonnet-20241022');
+        $apiKey = AiConfigHelper::getApiKey();
+        $model = AiConfigHelper::getModel() ?: 'claude-3-5-sonnet-20241022';
 
         $jsonData = json_encode($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SubscriptionGuard;
 use App\Models\Memorial;
 use App\Models\PaymentOrder;
 use App\Models\SubscriptionPlan;
@@ -76,6 +77,11 @@ class PaymentController extends Controller
         }
         if (! $memorial) {
             return response()->json(['success' => false, 'error' => 'Please select a memorial for this subscription.'], 400);
+        }
+
+        $guard = SubscriptionGuard::validatePayment($memorial, $plan);
+        if (! $guard['allowed']) {
+            return response()->json(['success' => false, 'error' => $guard['reason']], 400);
         }
 
         $currency = SystemSetting::get('payments.currency', 'USD');
@@ -397,6 +403,24 @@ class PaymentController extends Controller
             return;
         }
 
+        $hasActive = UserSubscription::where('memorial_id', $memorial->id)
+            ->where('subscription_plan_id', $plan->id)
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->exists();
+
+        if ($hasActive) {
+            return;
+        }
+
+        SubscriptionGuard::expireActiveSubscriptions($memorial);
+
+        UserSubscription::where('memorial_id', $memorial->id)
+            ->where('status', 'overdue')
+            ->update(['status' => 'expired']);
+
         $startsAt = now();
         $endsAt = match ($plan->interval ?? 'monthly') {
             'monthly' => $startsAt->copy()->addMonth(),
@@ -411,7 +435,7 @@ class PaymentController extends Controller
             'starts_at' => $startsAt,
             'ends_at' => $endsAt,
             'status' => 'active',
-            'payment_gateway' => 'pesapal',
+            'payment_gateway' => $order->payment_gateway ?? 'pesapal',
             'payment_reference' => $order->merchant_reference,
         ]);
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Helpers\SubscriptionGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Memorial;
 use App\Models\PaymentOrder;
@@ -275,6 +276,16 @@ class SettingsController extends Controller
             return back()->with('error', 'Free plans do not require Pesapal payment.');
         }
 
+        if (! $plan->isFree()) {
+            $guard = SubscriptionGuard::validatePayment($memorial, $plan);
+            if (! $guard['allowed']) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'error' => $guard['reason']], 422);
+                }
+                return back()->with('error', $guard['reason']);
+            }
+        }
+
         $currency = SystemSetting::get('payments.currency', 'USD');
         $status = $gateway === 'pesapal' ? 'pending' : $request->status;
 
@@ -444,16 +455,23 @@ class SettingsController extends Controller
             return;
         }
 
-        $hasActive = UserSubscription::where('memorial_id', $memorial->id)
+        $hasActiveSamePlan = UserSubscription::where('memorial_id', $memorial->id)
+            ->where('subscription_plan_id', $plan->id)
             ->where('status', 'active')
             ->where(function ($q) {
                 $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
             })
             ->exists();
 
-        if ($hasActive) {
+        if ($hasActiveSamePlan) {
             return;
         }
+
+        SubscriptionGuard::expireActiveSubscriptions($memorial);
+
+        UserSubscription::where('memorial_id', $memorial->id)
+            ->where('status', 'overdue')
+            ->update(['status' => 'expired']);
 
         $startsAt = now();
         $endsAt = match ($plan->interval ?? 'monthly') {
@@ -571,7 +589,7 @@ class SettingsController extends Controller
         $query = UserSubscription::with(['user', 'plan'])->orderByDesc('created_at');
 
         $status = $request->query('status');
-        if ($status && in_array($status, ['active', 'cancelled', 'expired', 'paused', 'pending'], true)) {
+        if ($status && in_array($status, ['active', 'cancelled', 'expired', 'paused', 'pending', 'overdue'], true)) {
             $query->where('status', $status);
         }
 
@@ -592,7 +610,7 @@ class SettingsController extends Controller
             'user_id' => 'required|exists:users,id',
             'memorial_id' => 'required|exists:memorials,id',
             'subscription_plan_id' => 'required|exists:subscription_plans,id',
-            'status' => 'required|in:active,cancelled,expired,paused,pending',
+            'status' => 'required|in:active,cancelled,expired,paused,pending,overdue',
             'starts_at' => 'required|date',
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
             'payment_gateway' => 'nullable|string|max:50',
@@ -602,6 +620,26 @@ class SettingsController extends Controller
         $memorial = Memorial::findOrFail($request->memorial_id);
         if ($memorial->user_id != $request->user_id) {
             return back()->with('error', 'Memorial must belong to the selected user.');
+        }
+
+        if ($request->status === 'active') {
+            $plan = SubscriptionPlan::find($request->subscription_plan_id);
+            $existingActive = UserSubscription::where('memorial_id', $memorial->id)
+                ->where('subscription_plan_id', $request->subscription_plan_id)
+                ->where('status', 'active')
+                ->where(function ($q) {
+                    $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                })
+                ->exists();
+
+            if ($existingActive) {
+                return back()->with('error', 'This memorial already has an active subscription for this plan.');
+            }
+
+            SubscriptionGuard::expireActiveSubscriptions($memorial);
+            UserSubscription::where('memorial_id', $memorial->id)
+                ->where('status', 'overdue')
+                ->update(['status' => 'expired']);
         }
 
         $subscription = UserSubscription::create([
@@ -615,7 +653,7 @@ class SettingsController extends Controller
             'payment_reference' => $request->payment_reference ?: null,
         ]);
 
-        $plan = SubscriptionPlan::find($request->subscription_plan_id);
+        $plan = $plan ?? SubscriptionPlan::find($request->subscription_plan_id);
         $memorial->update([
             'plan' => $request->status === 'active' ? ($plan && $plan->isFree() ? 'free' : 'paid') : $memorial->plan,
             'subscription_plan_id' => $subscription->subscription_plan_id,
@@ -631,7 +669,7 @@ class SettingsController extends Controller
             'user_id' => 'required|exists:users,id',
             'memorial_id' => 'required|exists:memorials,id',
             'subscription_plan_id' => 'required|exists:subscription_plans,id',
-            'status' => 'required|in:active,cancelled,expired,paused,pending',
+            'status' => 'required|in:active,cancelled,expired,paused,pending,overdue',
             'starts_at' => 'required|date',
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
             'payment_gateway' => 'nullable|string|max:50',

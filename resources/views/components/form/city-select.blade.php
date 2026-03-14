@@ -59,7 +59,7 @@
         <ul x-ref="listbox" class="max-h-60 overflow-y-auto py-1" role="listbox">
             <template x-for="(city, index) in cities" :key="city.id">
                 <li
-                    @click="selectCity(city)"
+                    @mousedown.prevent="selectCity(city)"
                     @mouseenter="highlightIndex = index"
                     :class="{
                         'bg-brand-50 text-brand-700': highlightIndex === index,

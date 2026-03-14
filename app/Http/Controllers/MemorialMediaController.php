@@ -31,6 +31,10 @@ class MemorialMediaController extends Controller
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
+        }
 
         $request->validate(['photo' => ['required', 'image', 'max:5120']]); // 5MB
 
@@ -51,6 +55,10 @@ class MemorialMediaController extends Controller
         $memorial = Memorial::where('slug', $slug)->firstOrFail();
         if (!$this->canUpload($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
         }
 
         $request->validate([
@@ -118,6 +126,10 @@ class MemorialMediaController extends Controller
         $memorial = Memorial::where('slug', $slug)->firstOrFail();
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
         }
 
         $request->validate([
@@ -308,6 +320,10 @@ class MemorialMediaController extends Controller
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
+        }
 
         if (!PlanLimitsHelper::canUseBackgroundMusic($memorial)) {
             return response()->json(['error' => 'Background music is not available on your current plan. Upgrade for this feature.'], 422);
@@ -344,6 +360,10 @@ class MemorialMediaController extends Controller
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
+        }
 
         if ($memorial->background_music) {
             Storage::disk('public')->delete($memorial->background_music);
@@ -361,6 +381,10 @@ class MemorialMediaController extends Controller
         $memorial = Memorial::where('slug', $slug)->firstOrFail();
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
         }
 
         $media = $memorial->media()->findOrFail($mediaId);
@@ -388,6 +412,10 @@ class MemorialMediaController extends Controller
         $memorial = Memorial::where('slug', $slug)->firstOrFail();
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
         }
 
         $media = $memorial->media()->findOrFail($mediaId);

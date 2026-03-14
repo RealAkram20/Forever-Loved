@@ -286,6 +286,10 @@ class MemorialApiController extends Controller
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
+        }
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -319,6 +323,10 @@ class MemorialApiController extends Controller
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
+        }
 
         $chapter = $memorial->storyChapters()->findOrFail($chapterId);
 
@@ -345,6 +353,10 @@ class MemorialApiController extends Controller
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
+        }
 
         $chapter = $memorial->storyChapters()->findOrFail($chapterId);
 
@@ -363,6 +375,10 @@ class MemorialApiController extends Controller
 
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
         }
 
         $validated = $request->validate([
@@ -399,6 +415,10 @@ class MemorialApiController extends Controller
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
+        }
 
         $validated = $request->validate([
             'title' => ['nullable', 'string', 'max:255'],
@@ -421,6 +441,10 @@ class MemorialApiController extends Controller
 
         if (!$this->canEdit($memorial)) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        $mediaCheck = PlanLimitsHelper::canModifyMedia($memorial);
+        if (!$mediaCheck['allowed']) {
+            return response()->json(['error' => $mediaCheck['reason']], 403);
         }
 
         $post->delete();

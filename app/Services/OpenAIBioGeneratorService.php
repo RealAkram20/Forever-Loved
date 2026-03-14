@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\AiConfigHelper;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +26,7 @@ class OpenAIBioGeneratorService
             }
         }
 
-        if (!config('services.openai.enabled') || !config('services.openai.api_key')) {
+        if (!AiConfigHelper::isEnabled() || !AiConfigHelper::getApiKey()) {
             return $this->templateGenerator->generate($structuredData);
         }
 
@@ -46,8 +47,8 @@ class OpenAIBioGeneratorService
 
     protected function callOpenAI(array $structuredData): array
     {
-        $apiKey = config('services.openai.api_key');
-        $model = config('services.openai.model', 'gpt-4o-mini');
+        $apiKey = AiConfigHelper::getApiKey();
+        $model = AiConfigHelper::getModel() ?: 'gpt-4o-mini';
 
         $jsonData = json_encode($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 

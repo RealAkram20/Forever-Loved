@@ -132,7 +132,7 @@
                                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
                                     <div>
                                         <x-form.country-select id="step1_death_country" name="death_country" label="Country"
-                                            :value="old('death_country', $data['death_country'] ?? '')" :autoDetect="true" />
+                                            :value="old('death_country', $data['death_country'] ?? '')" />
                                     </div>
                                     <div>
                                         <x-form.state-select id="step1_death_state" name="death_state"
@@ -294,8 +294,13 @@ function step1Persist(serverData) {
         restoreForm(saved) {
             const form = document.getElementById('step1-form');
             if (!form) return;
+            const locationFields = new Set([
+                'birth_country', 'birth_state', 'birth_city',
+                'death_country', 'death_state', 'death_city',
+            ]);
             for (const [name, value] of Object.entries(saved)) {
                 if (name === 'doDatesLater' || name === 'doProfileLater') continue;
+                if (locationFields.has(name)) continue;
                 const el = form.querySelector(`[name="${name}"]`);
                 if (!el) continue;
                 if (el.type === 'checkbox') {
@@ -309,6 +314,62 @@ function step1Persist(serverData) {
             this.doDatesLater = !!saved.doDatesLater;
             this.doProfileLater = !!saved.doProfileLater;
             form.dispatchEvent(new Event('change', { bubbles: true }));
+            setTimeout(() => this.restoreLocationFields(saved), 0);
+        },
+
+        restoreLocationFields(saved) {
+            if (typeof Alpine === 'undefined') return;
+            const groups = [
+                { prefix: 'birth', countryId: 'step1_birth_country', stateId: 'step1_birth_state', cityId: 'step1_birth_city' },
+                { prefix: 'death', countryId: 'step1_death_country', stateId: 'step1_death_state', cityId: 'step1_death_city' },
+            ];
+            for (const g of groups) {
+                const countryVal = saved[g.prefix + '_country'] || '';
+                const stateVal = saved[g.prefix + '_state'] || '';
+                const cityVal = saved[g.prefix + '_city'] || '';
+                if (!countryVal) continue;
+                this._restoreLocationGroup(g, countryVal, stateVal, cityVal);
+            }
+        },
+
+        _restoreLocationGroup(g, countryVal, stateVal, cityVal) {
+            const countryRoot = document.getElementById(g.countryId)?.closest('[x-data]');
+            if (!countryRoot) return;
+            const countryData = Alpine.$data(countryRoot);
+
+            const match = (window.__countryData || []).find(
+                c => c.name.toLowerCase() === countryVal.toLowerCase()
+            );
+            if (match) {
+                countryData.selectedName = match.name;
+                countryData.selectedCode = match.iso2;
+                countryData.search = match.name;
+            } else {
+                countryData.selectedName = countryVal;
+                countryData.search = countryVal;
+                return;
+            }
+
+            const stateRoot = document.getElementById(g.stateId)?.closest('[x-data]');
+            if (stateRoot) {
+                const sd = Alpine.$data(stateRoot);
+                sd.countryCode = match.iso2;
+                if (stateVal) {
+                    sd.selectedName = stateVal;
+                    sd.search = stateVal;
+                }
+                sd.fetchStates(match.iso2, true);
+            }
+
+            if (cityVal) {
+                const cityRoot = document.getElementById(g.cityId)?.closest('[x-data]');
+                if (cityRoot) {
+                    const cd = Alpine.$data(cityRoot);
+                    cd.selectedName = cityVal;
+                    cd.search = cityVal;
+                    cd.countryCode = match.iso2;
+                }
+            }
         }
     };
 }

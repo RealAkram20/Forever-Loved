@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AiConfigHelper;
 use App\Helpers\PlanLimitsHelper;
 use App\Models\Memorial;
 use App\Services\ClaudeBioGeneratorService;
@@ -123,7 +124,6 @@ class MemorialController extends Controller
             'nationality' => ['nullable', 'string', 'max:255'],
             'primary_profession' => ['nullable', 'string', 'max:255'],
             'notable_title' => ['nullable', 'string', 'max:255'],
-            'more_details' => ['nullable', 'string', 'max:2000'],
             'major_achievements' => ['nullable', 'string', 'max:2000'],
             'known_for' => ['nullable', 'string', 'max:500'],
             'active_year_start' => ['nullable', 'integer', 'min:1900', 'max:2100'],
@@ -137,6 +137,9 @@ class MemorialController extends Controller
             'death_state' => ['nullable', 'string', 'max:255'],
             'death_country' => ['nullable', 'string', 'max:255'],
             'cause_of_death' => ['nullable', 'string', 'max:255'],
+            'cause_of_death_private' => ['nullable', 'boolean'],
+            'designation' => ['nullable', 'string', 'max:255'],
+            'is_public' => ['nullable', 'boolean'],
             'biography' => ['nullable', 'string', 'max:50000'],
             'theme' => ['required', Rule::in(['free', 'premium', 'classic', 'modern', 'garden'])],
             'plan' => ['nullable', Rule::in(['free', 'paid'])],
@@ -255,7 +258,6 @@ class MemorialController extends Controller
             'nationality' => ['nullable', 'string', 'max:255'],
             'primary_profession' => ['nullable', 'string', 'max:255'],
             'notable_title' => ['nullable', 'string', 'max:255'],
-            'more_details' => ['nullable', 'string', 'max:2000'],
             'major_achievements' => ['nullable', 'string', 'max:2000'],
             'known_for' => ['nullable', 'string', 'max:500'],
             'active_year_start' => ['nullable', 'integer', 'min:1900', 'max:2100'],
@@ -646,9 +648,14 @@ class MemorialController extends Controller
     {
         $this->authorize('update', $memorial);
 
-        $aiCheck = PlanLimitsHelper::canUseAiBio($memorial);
-        if (!$aiCheck['allowed']) {
-            return response()->json(['message' => $aiCheck['reason']], 422);
+        $reservation = PlanLimitsHelper::reserveAiBioUsage($memorial);
+        if (!$reservation['allowed']) {
+            return response()->json([
+                'message' => $reservation['reason'],
+                'current' => $reservation['current'],
+                'max' => $reservation['max'],
+                'remaining' => 0,
+            ], 422);
         }
 
         if ($request->has('form_data') && is_array($request->form_data)) {
@@ -683,9 +690,9 @@ class MemorialController extends Controller
             ], 422);
         }
 
-        $o1 = trim($options['option_1'] ?? '');
-        $o2 = trim($options['option_2'] ?? '');
-        $o3 = trim($options['option_3'] ?? '');
+        $o1 = strip_tags(trim($options['option_1'] ?? ''));
+        $o2 = strip_tags(trim($options['option_2'] ?? ''));
+        $o3 = strip_tags(trim($options['option_3'] ?? ''));
 
         if (!$o1 && !$o2 && !$o3) {
             return response()->json([
@@ -693,13 +700,16 @@ class MemorialController extends Controller
             ], 422);
         }
 
-        PlanLimitsHelper::incrementAiBioUsage($memorial->user_id);
+        $remaining = max(0, $reservation['max'] - $reservation['current']);
 
         return response()->json([
             'ai_provider' => $aiProvider,
             'option_1' => $o1,
             'option_2' => $o2,
             'option_3' => $o3,
+            'current' => $reservation['current'],
+            'max' => $reservation['max'],
+            'remaining' => $remaining,
         ]);
     }
 
@@ -708,16 +718,7 @@ class MemorialController extends Controller
      */
     protected function getActiveAiProvider(): ?string
     {
-        if (config('services.openai.enabled') && config('services.openai.api_key')) {
-            return 'ChatGPT';
-        }
-        if (config('services.anthropic.enabled') && config('services.anthropic.api_key')) {
-            return 'Claude AI';
-        }
-        if (config('services.gemini.enabled') && config('services.gemini.api_key')) {
-            return 'Google Gemini';
-        }
-        return null;
+        return AiConfigHelper::getActiveProvider();
     }
 
     protected function parseAiErrorMessage(string $message): string
@@ -756,7 +757,6 @@ class MemorialController extends Controller
             'nationality' => ['nullable', 'string', 'max:255'],
             'primary_profession' => ['nullable', 'string', 'max:255'],
             'notable_title' => ['nullable', 'string', 'max:255'],
-            'more_details' => ['nullable', 'string', 'max:2000'],
             'major_achievements' => ['nullable', 'string', 'max:2000'],
             'known_for' => ['nullable', 'string', 'max:500'],
             'active_year_start' => ['nullable', 'integer', 'min:1900', 'max:2100'],

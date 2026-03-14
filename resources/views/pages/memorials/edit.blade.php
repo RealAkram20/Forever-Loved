@@ -408,7 +408,7 @@
 
             {{-- Biography --}}
             <x-common.component-card id="biography" title="Biography" desc="Preview your biography. Click edit to modify, or generate from template/AI.">
-                <div class="space-y-6" x-data="bioGenerator({{ $memorial->id }}, {{ json_encode($memorial->biography) }})">
+                <div class="space-y-6" x-data="bioGenerator({{ $memorial->id }}, {{ json_encode($memorial->biography) }}, {{ json_encode(['enabled' => $aiEnabled ?? false, 'allowed' => $quotaInfo['ai_bio']['allowed'] ?? false, 'current' => $quotaInfo['ai_bio']['current'] ?? 0, 'max' => $quotaInfo['ai_bio']['max'] ?? 0, 'reason' => $quotaInfo['ai_bio']['reason'] ?? null]) }})">
                     <script type="application/json" id="edit-page-biography-initial">{{ json_encode($memorial->biography ?? '') }}</script>
 
                     {{-- Preview mode (default): show biography with edit icon --}}
@@ -473,30 +473,24 @@
                             <span x-show="!templateLoading">Generate Bio</span>
                             <span x-show="templateLoading">Generating...</span>
                         </button>
-                        @if($aiEnabled ?? false)
-                            @if(isset($quotaInfo) && !$quotaInfo['ai_bio']['allowed'])
-                                <button type="button" disabled
+                        <template x-if="aiQuota.enabled">
+                            <div>
+                                <button x-show="!aiQuota.allowed || aiQuota.max === 0" type="button" disabled
                                     class="rounded-lg bg-gray-300 dark:bg-gray-700 px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                                    title="{{ $quotaInfo['ai_bio']['reason'] }}">
-                                    @if($quotaInfo['ai_bio']['max'] === 0)
-                                        AI Bio (Upgrade Plan)
-                                    @else
-                                        AI Bio ({{ $quotaInfo['ai_bio']['current'] }}/{{ $quotaInfo['ai_bio']['max'] }} today)
-                                    @endif
+                                    :title="aiQuota.reason || ''">
+                                    <span x-show="aiQuota.max === 0">AI Bio (Upgrade Plan)</span>
+                                    <span x-show="aiQuota.max > 0" x-text="'AI Bio (0 left)'"></span>
                                 </button>
-                            @else
-                                <button type="button" @click="generateAI()" :disabled="aiLoading"
+                                <button x-show="aiQuota.allowed && aiQuota.max > 0" type="button" @click="generateAI()" :disabled="aiLoading"
                                     class="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">
                                     <span x-show="!aiLoading">
                                         Generate with AI
-                                        @if(isset($quotaInfo) && $quotaInfo['ai_bio']['max'] > 0)
-                                            <span class="text-xs opacity-75">({{ $quotaInfo['ai_bio']['current'] }}/{{ $quotaInfo['ai_bio']['max'] }})</span>
-                                        @endif
+                                        <span x-show="aiQuota.max > 0" class="text-xs opacity-75" x-text="'(' + (aiQuota.max - aiQuota.current) + ' left)'"></span>
                                     </span>
                                     <span x-show="aiLoading">Generating...</span>
                                 </button>
-                            @endif
-                        @endif
+                            </div>
+                        </template>
                     </div>
                 </div>
             </x-common.component-card>
@@ -810,7 +804,7 @@
             };
         }
 
-        function bioGenerator(memorialId, currentBio) {
+        function bioGenerator(memorialId, currentBio, quotaInit) {
             return {
                 memorialId,
                 currentBio: currentBio || '',
@@ -822,6 +816,13 @@
                 aiProviderName: '',
                 aiLoading: false,
                 publishing: false,
+                aiQuota: {
+                    enabled: quotaInit?.enabled ?? false,
+                    allowed: quotaInit?.allowed ?? false,
+                    current: quotaInit?.current ?? 0,
+                    max: quotaInit?.max ?? 0,
+                    reason: quotaInit?.reason ?? null,
+                },
                 formatBio(text) {
                     if (!text || !String(text).trim()) return '';
                     if (text.includes('<')) return text;
@@ -930,12 +931,27 @@
                     .then(r => {
                         if (!r.ok) {
                             return r.json().catch(() => ({})).then(err => {
+                                if (err.current !== undefined) {
+                                    this.aiQuota.current = err.current;
+                                    this.aiQuota.max = err.max;
+                                    this.aiQuota.allowed = (err.remaining ?? 0) > 0;
+                                    this.aiQuota.reason = err.message;
+                                }
                                 throw new Error(err.message || 'AI generation failed. Please try again.');
                             });
                         }
                         return r.json();
                     })
                     .then(data => {
+                        if (data.current !== undefined) {
+                            this.aiQuota.current = data.current;
+                            this.aiQuota.max = data.max;
+                            this.aiQuota.allowed = (data.remaining ?? 0) > 0;
+                            if (data.remaining === 0) {
+                                this.aiQuota.reason = 'Limit reached. Please come back tomorrow.';
+                                $toast('warning', 'Limit reached. Please come back tomorrow.');
+                            }
+                        }
                         const o1 = (data.option_1 ?? '').toString().trim();
                         const o2 = (data.option_2 ?? '').toString().trim();
                         const o3 = (data.option_3 ?? '').toString().trim();
